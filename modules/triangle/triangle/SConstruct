@@ -1,0 +1,11 @@
+env = Environment(CFLAGS = '-DTRILIBRARY -O3')
+
+if env['PLATFORM'] == 'darwin':
+	target = 'libtriangle.dylib'
+else:
+	target = 'libtriangle.so'
+
+source = ['triangle.c']
+
+env.SharedLibrary(source = source, target = target)
+
