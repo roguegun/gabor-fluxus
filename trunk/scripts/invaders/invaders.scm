@@ -111,17 +111,6 @@
                           (texture (list-ref ship-textures x))
                           (build-plane)))))
 
-        ; mirror textures horizontaly
-        (for-each
-          (lambda (p)
-            (with-primitive p
-                (hide 1)
-                (pdata-set! "t" 0 (vector 0 1 0))
-                (pdata-set! "t" 1 (vector 1 1 0))
-                (pdata-set! "t" 2 (vector 1 0 0))
-                (pdata-set! "t" 3 (vector 0 0 0))))
-          frames)
-
          ;(define bb 0)
          (define missile #f)    ; missile object or #f
 
@@ -233,10 +222,6 @@
          (define barricade (build-plane))
          (with-primitive barricade
                          (texture tex)
-                         (pdata-set! "t" 0 (vector 0 1 0)) ; mirror texture
-                         (pdata-set! "t" 1 (vector 1 1 0))
-                         (pdata-set! "t" 2 (vector 1 0 0))
-                         (pdata-set! "t" 3 (vector 0 0 0))
                          (translate (vector x y 0))
                          (scale (vector width height 1))
                          (translate (vector .5 -.5 0)))
@@ -264,7 +249,10 @@
                 (begin
                     (with-primitive pix
                         (for ([j (in-range 0 9)])
-                            (pdata-set! "c" (list-ref (vector-ref pixel-list i) j) (vector 0 0)))
+							(let* ([o (list-ref (vector-ref pixel-list i) j)] ; mirror y
+								   [ox (modulo o width)]
+								   [oy (- (- height 1) (quotient o width))])
+								(pdata-set! "c" (+ ox (* oy width)) (vector 0 0))))
                         (pixels-upload))
                     (vector-set! pixel-list i (list-tail (vector-ref pixel-list i) 9))
                     #t)))
@@ -302,17 +290,6 @@
                         (with-state
                           (texture (list-ref txts x))
                           (build-plane))))))
-
-        ; mirror textures horizontaly
-        (for-each
-          (lambda (p)
-            (with-primitive p
-                (hide 1)
-                (pdata-set! "t" 0 (vector 0 1 0))
-                (pdata-set! "t" 1 (vector 1 1 0))
-                (pdata-set! "t" 2 (vector 1 0 0))
-                (pdata-set! "t" 3 (vector 0 0 0))))
-          frames)
 
         (define anim-frame 0) ; current animation frame index
         (define anim-fraction-counter 0)
@@ -381,17 +358,6 @@
                             (texture (list-ref txts x))
                             (build-plane))))))
 
-        ; mirror textures horizontaly
-        (for-each
-          (lambda (p)
-            (with-primitive p
-                (hide 1)
-                (pdata-set! "t" 0 (vector 0 1 0))
-                (pdata-set! "t" 1 (vector 1 1 0))
-                (pdata-set! "t" 2 (vector 1 0 0))
-                (pdata-set! "t" 3 (vector 0 0 0))))
-          frames)
-        
         (define anim-frame 0) ; current animation frame index
 		(define state 'alive) ; 'alive, 'dying or 'dead
         
