@@ -20,8 +20,6 @@
 (require scheme/list)
 (require scheme/math)
 
-(require "invaders-tools.ss")
-
 (clear)
 
 (hint-ignore-depth)
@@ -32,6 +30,8 @@
         mag nearest
         wrap-s clamp
         wrap-t clamp))
+
+(define texture-location "textures/")
 
 ;; load invader textures
 (define invader-textures
@@ -50,7 +50,15 @@
 (define missile-textures
   (build-list 3
         (lambda (i)
-          (map (lambda (t) (load-texture t)) (find-missile-txts i)))))
+          (if (= i 2)
+            (list (load-texture (string-append texture-location
+                                               "missile20.png")))
+            (for/list ([j (in-range 0 2)])
+                (load-texture (string-append texture-location
+                                             "missile"
+                                             (number->string i)
+                                             (number->string j)
+                                             ".png")))))))
 
 ;; ship textures
 (define ship-textures
