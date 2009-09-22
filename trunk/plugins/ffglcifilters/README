@@ -1,7 +1,7 @@
 FFGLCIFilters - FFGL CoreImage filters
 (C) 2009 Gabor Papp, http://mndl.hu/
 
-FFGLCIFilters are OSX 10.4+ CoreImage filters wrapped as FreeFrameGL filters.:Wq
+FFGLCIFilters are OSX 10.4+ CoreImage filters wrapped as FreeFrameGL filters.
 
 
 Building and installing instructions
