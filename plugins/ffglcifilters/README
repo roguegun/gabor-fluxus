@@ -1,0 +1,26 @@
+FFGLCIFilters - FFGL CoreImage filters
+(C) 2009 Gabor Papp, http://mndl.hu/
+
+FFGLCIFilters are OSX 10.4+ CoreImage filters wrapped as FreeFrameGL filters.:Wq
+
+
+Building and installing instructions
+------------------------------------
+
+FFGLCIFilters require scons and glew. They were developed with
+MacPorts (http://www.macports.org/).
+
+Install dependencies from MacPorts:
+
+sudo port install glew scons 
+
+To build, go to the ffglcifilters folder and type:
+scons
+
+FFGLCIFilters were developed for Fluxus (http://www.pawfal.org/fluxus), although
+they can be used in any FFGL capable applications.
+
+To install the filters in the Fluxus default plugin folder
+(/opt/local/share/fluxus-016/plugins/) type:
+sudo scons install
+
