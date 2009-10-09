@@ -1,3 +1,4 @@
+DEBUG = 1
 
 TARGETS = ['cibloom',
 		'ciboxblur',
@@ -16,6 +17,7 @@ TARGETS = ['cibloom',
 		'cicrop',
 		'cicrystallize',
 		'cidiscblur',
+		'cidisplacementdistortion',
 		'cidotscreen',
 		'ciedges',
 		'ciedgework',
@@ -92,6 +94,7 @@ DEFINES = [
 		'-DFILTER_NAME=\'"CICrop"\' -DFILTER_ID=\'"CICR"\' ',
 		'-DFILTER_NAME=\'"CICrystallize"\' -DFILTER_ID=\'"CICY"\' ',
 		'-DFILTER_NAME=\'"CIDiscBlur"\' -DFILTER_ID=\'"CIDB"\' ',
+		'-DFILTER_NAME=\'"CIDisplacementDistortion"\' -DFILTER_ID=\'"CIDD"\' ',
 		'-DFILTER_NAME=\'"CIDotScreen"\' -DFILTER_ID=\'"CIDS"\' ',
 		'-DFILTER_NAME=\'"CIEdges"\' -DFILTER_ID=\'"CIED"\' ',
 		'-DFILTER_NAME=\'"CIEdgeWork"\' -DFILTER_ID=\'"CIEW"\' ',
@@ -150,12 +153,34 @@ DEFINES = [
 		'-DFILTER_NAME=\'"CIWhitePointAdjust"\' -DFILTER_ID=\'"CIWP"\' ',
 		'-DFILTER_NAME=\'"CIZoomBlur"\' -DFILTER_ID=\'"CIZB"\' ']
 
-DEBUG = 1
+AddOption('--bundle', action='store_true', help='Build OSX bundle instead of .dylib')
+
+# check the availability of libraries
+env = Environment()
+
+LIBLIST = [['m', 'math.h'],
+		   ['GLEW', 'GL/glew.h']]
+
+LIBS = []
+
+LIBPATH = ['-L/opt/local/lib']
+INCPATH = ['-I/opt/local/include']
+
+env.Append(CPPPATH = INCPATH)
+env.Append(LIBPATH = LIBPATH)
+
+if not GetOption('clean'):
+	conf = Configure(env)
+	for (lib, headers) in LIBLIST:
+		if not conf.CheckLibWithHeader(lib, headers, 'c++'):
+			print "error: '%s' must be installed!" % lib
+			Exit(1)
+		LIBS += [lib]
+	env = conf.Finish()
 
 for i in range(len(TARGETS)):
 	TARGET = TARGETS[i]
-	ECCFLAGS = DEFINES[i]
-	#print TARGET, ECCFLAGS
-	Export(['DEBUG', 'TARGET', 'ECCFLAGS'])
+	ECCFLAGS = INCPATH[0] + ' ' + DEFINES[i]
+	Export(['DEBUG', 'TARGET', 'ECCFLAGS', 'LIBS', 'LIBPATH'])
 	SConscript('SConscript', variant_dir = TARGET, duplicate = 0)
 
