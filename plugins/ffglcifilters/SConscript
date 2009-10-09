@@ -2,18 +2,18 @@
 # create the environment
 
 env = Environment()
-env.SetDefault(ECCFLAGS = '')
-env.Import(['TARGET', 'DEBUG', 'ECCFLAGS'])
+env.Import(['TARGET', 'DEBUG', 'ECCFLAGS', 'LIBS', 'LIBPATH'])
 
 INSTALLPATH = ARGUMENTS.get('InstallDir', '/opt/local/share/fluxus-016/plugins')
 PROFILE = int(ARGUMENTS.get('profile', 0))
 
 SOURCES = ['CITemplate.cpp', 'CIObjC.m', 'Surface.cpp']
+STATIC = 0
 
-LIBS = ['objc']
+if 'objc' not in LIBS:
+	LIBS += ['objc']
 FRAMEWORKS = ['AppKit', 'QuartzCore']
 
-# FIXME: i had to copy the plugin framework source to the template directory 
 # to be able to build multiple variants from the same source
 LIBSOURCES = ['FFGLPlugin.cpp']
 LIBINCLUDES = ['./']	# add current directory to the include path
@@ -24,55 +24,27 @@ INCLUDES = LIBINCLUDES
 platform = env['PLATFORM']
 
 CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' + \
-	    '-pedantic '
+		'-pedantic '
 CFLAGS = '-std=gnu99 -Wno-import '
 
 LINKFLAGS = ''
 
-if platform != 'cygwin':
-	CCFLAGS += '-Wno-variadic-macros '
-
-if PROFILE:		# add profiling flags if needed
-	DEBUG = 1
-	CCFLAGS += '-pg '
-	LINKFLAGS += '-pg '
+if GetOption('bundle'):
+	STATIC = 1
+	LINKFLAGS += '-bundle -flat_namespace ' #-flat_namespace -undefined suppress '
 
 if DEBUG:
 	CCFLAGS += '-ggdb2 -O0 -DDEBUG=1 '
 else:
 	CCFLAGS += '-g0 -O3 '
 
-LIBLIST = [['m', 'math.h'],
-	['GLEW', 'GL/glew.h']]
-'''
-	['png', 'png.h'],
-	['jpeg', ['stdio.h', 'jpeglib.h']],
-'''
+env.Append(FRAMEWORKS = ['GLUT', 'OpenGL'])
+env.Append(FRAMEWORKS = FRAMEWORKS)
 
-if platform == 'darwin':
-    env.Append(FRAMEWORKS = ['GLUT', 'OpenGL'])
-    env.Append(FRAMEWORKS = FRAMEWORKS)
-elif platform == 'posix':
-    LIBLIST += [['GL', 'GL/gl.h'],
-	     ['GLU', 'GL/glu.h'],
-	     ['glut', 'GL/glut.h']]
-
-'''
-# pkg-config
-if platform  == 'posix':
-    PKG_CONFIG = ARGUMENTS.get('PKGConfig', 'pkg-config')
-elif platform == 'darwin':
-    PKG_CONFIG = ARGUMENTS.get('PKGConfig', '/opt/local/bin/pkg-config')
-
-try:
-    env.MergeFlags(['!%s --cflags --libs libpng' % PKG_CONFIG])
-except:
-    pass
-'''
-
-# FIXME: how to include libjpeg?
-if platform == 'darwin':
-	env.MergeFlags('-I/opt/local/include -L/opt/local/lib')
+if STATIC:
+	if 'GLEW' in LIBS:
+		LIBS.remove('GLEW')
+		LIBS.append((File('/opt/local/lib/libGLEW.a')))
 
 env.Append(CFLAGS = CFLAGS)
 env.Append(CCFLAGS = CCFLAGS)
@@ -80,25 +52,30 @@ env.Append(CCFLAGS = ECCFLAGS)
 env.Append(CPPPATH = INCLUDES)
 env.Append(LINKFLAGS = LINKFLAGS)
 env.Append(LIBS = LIBS)
+env.Append(LIBPATH = LIBPATH)
 
-# check the availability of libraries
+# build the plugin
 
-if not GetOption('clean'):
-    conf = Configure(env)
-    for (lib, headers) in LIBLIST:
-	    if not conf.CheckLibWithHeader(lib, headers, 'c++'):
-		    print "error: '%s' must be installed!" % lib
-		    Exit(1)
-    env = conf.Finish()
-
-# build the application
-
-env.SharedLibrary(source = SOURCES, target = TARGET, SHLIBPREFIX = '')
+if GetOption('bundle'):
+	env.Program(source = SOURCES, target = TARGET)
+else:
+	env.SharedLibrary(source = SOURCES, target = TARGET, SHLIBPREFIX = '')
 
 # install
-if platform == 'darwin':
+if not GetOption('bundle'):
 	TARGET = TARGET + '.dylib'
 
 env.Install(INSTALLPATH, TARGET)
 env.Alias('install', INSTALLPATH)
+
+# packaging / installing
+if GetOption('bundle'): 
+	from scripts.osxbundle import *
+	TOOL_BUNDLE(env)
+	env.Replace(FRAMEWORKS = Split('OpenGL GLUT AppKit QuartzCore'))
+	env.Alias('bundle', env.MakeBundle(TARGET + '.bundle',
+		TARGET,
+		'key',
+		'ffglcifilters.plist',
+		typecode = 'BNDL'))
 
