@@ -18,6 +18,8 @@
 
 #include <iostream>
 
+#include <GL/glew.h>
+
 #include "CIObjC.h"
 #include "CITemplate.h"
 
@@ -37,6 +39,12 @@ CITemplate::CITemplate(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 
 CITemplate::CITemplate()
 {
+	GLenum err = glewInit();
+	if (GLEW_OK != err)
+	{
+		  cerr << "Error: " << glewGetErrorString(err) << endl;
+	}
+
 	/* initialise the core image filter */
 	ci_init();
 
