@@ -1,0 +1,133 @@
+# SConstruct
+import os, sys
+
+Target = 'fluxus-video_ss'
+
+# fluxus version
+MajorVersion = "0"
+MinorVersion = "16"
+FluxusVersion = MajorVersion + MinorVersion
+
+# environment for building
+env = Environment()
+
+Source = ['src/Video.cpp',
+		'src/FluxusVideo.cpp',
+		'src/ofVideoPlayer.cpp']
+
+if env['PLATFORM'] == 'darwin':
+	Source += ['src/ofQtUtils.cpp']
+
+IncludePaths = []
+
+# libs to check for
+LibList = [["mzscheme3m", "scheme.h"]]
+Libs = []
+LibPaths = []
+
+Frameworks = []
+FrameworkPaths = []
+
+# get PLT directories and collects install path
+DESTDIR = ARGUMENTS.get('DESTDIR', '')
+if len(DESTDIR)>0 and DESTDIR[0] != "/":
+                DESTDIR = "#" + DESTDIR
+
+if env['PLATFORM'] == 'darwin':
+	file = os.popen('dirname "`which mzscheme`"')
+	PLTBin = file.read()
+	file.close()
+	Prefix = ARGUMENTS.get('Prefix','/opt/local')
+	PLTPrefix = ARGUMENTS.get('PLTPrefix', PLTBin[:-5])
+	PLTInclude = ARGUMENTS.get('PLTInclude', PLTPrefix + "/include")
+	PLTLib = ARGUMENTS.get('PLTLib', PLTPrefix + "/lib")
+elif sys.platform == 'win32':
+	Prefix = ARGUMENTS.get('Prefix','c:/Program Files/Fluxus')
+	PLTPrefix = ARGUMENTS.get('PLTPrefix','c:/Program Files/PLT')
+	PLTInclude = ARGUMENTS.get('PLTInclude', PLTPrefix + "/include")
+	PLTLib = ARGUMENTS.get('PLTLib', PLTPrefix + "/lib")
+else:
+	Prefix = ARGUMENTS.get('Prefix','/usr/local')
+	PLTPrefix = ARGUMENTS.get('PLTPrefix','/usr/local')
+	PLTInclude = ARGUMENTS.get('PLTInclude', PLTPrefix + "/include/plt")
+	PLTLib = ARGUMENTS.get('PLTLib', PLTPrefix + "/lib/plt")
+
+if env['PLATFORM'] == 'darwin':
+	IncludePaths += ['/opt/local/include']
+	Libs += ['objc']
+	LibPaths += ['/opt/local/lib']
+	Frameworks += ['Carbon', 'QuickTime', 'OpenGL', 'AppKit', 'Foundation']
+
+elif env['PLATFORM'] == 'posix':
+	for pkg in ['gstreamer-0.10', 'gstreamer-video-0.10', 'glib-2.0']:
+		try:
+			env.MergeFlags('!pkg-config --cflags --libs  %s' % pkg)
+		except:
+			print "ERROR: '%s' must be installed!" % pkg
+			Exit(1)
+	LibList += [['gstapp-0.10', 'gst/app/gstappsink.h']]
+
+# run mzscheme to get (path->string (system-library-subpath))
+file = os.popen("mzscheme -em \"(begin (display (path->string (system-library-subpath)))(exit))\"")
+archpath = file.read()
+file.close()
+
+InstallLocation = DESTDIR + Prefix + '/lib/fluxus-' + FluxusVersion
+BinaryInstallLocation = InstallLocation + '/compiled/native/' + archpath
+
+# set up PLT lib, framework, include path
+IncludePaths += [PLTInclude]
+LibPaths += [PLTLib]
+
+env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
+env.Append(CCFLAGS = '-DMZ_PRECISE_GC')
+MZDYN = PLTLib + '/mzdyn3m.o'
+
+Source += [MZDYN]
+
+if env['PLATFORM'] == 'darwin':
+	Frameworks += ['PLT_MrEd']
+	FrameworkPaths += [PLTLib]
+
+# configure environment
+CFLAGS = '-std=gnu99 -Wno-import'
+CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
+		'-pedantic -ggdb2 -O3 -Wno-variadic-macros'
+
+env.Append(CFLAGS = CFLAGS)
+env.MergeFlags(CCFLAGS)
+env.Append(CPPPATH = IncludePaths)
+env.Append(LIBS = Libs)
+env.Append(LIBPATH = LibPaths)
+env.Append(FRAMEWORKS = Frameworks)
+env.Append(FRAMEWORKPATH = FrameworkPaths)
+
+# check installed libraries
+
+if not GetOption('clean'):
+        conf = Configure(env)
+
+        # all libraries are required, and some of them require each other,
+        # hence the order is important, and autoadd=1
+        for (lib, headers) in LibList:
+                if not conf.CheckHeader(headers):
+                        print "ERROR: '%s' must be installed!" % (lib)
+                        Exit(1)
+
+        env = conf.Finish()
+
+		# remove mzscheme, it will be added as a framework
+        if env['PLATFORM'] == 'darwin':
+                LibList = filter(lambda x: x[0] != 'mzscheme3m', LibList)
+
+        # ... but we shouldn't forget to add them to LIBS manually
+        env.Append(LIBS = [rec[0] for rec in LibList])
+
+output = env.SharedLibrary(source = Source, 
+				  target = Target,
+				  FRAMEWORKS = Frameworks,
+				  SHLIBPREFIX = '')
+
+env.Install(BinaryInstallLocation, output)
+env.Alias('install', InstallLocation)
+
