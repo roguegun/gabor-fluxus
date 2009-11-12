@@ -383,6 +383,7 @@ void ci_process(unsigned *handles, int width, int height)
 	glOrtho(0, width, 0, height, -1, 1);
 	[ci_context drawImage:result atPoint:CGPointZero fromRect:CGRectMake(0, 0, width, height)];
 	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
 
 	CGColorSpaceRelease(cs);
 

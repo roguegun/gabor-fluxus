@@ -65,7 +65,11 @@ else:
 if not GetOption('bundle'):
 	TARGET = TARGET + '.dylib'
 
-env.Install(INSTALLPATH, TARGET)
+if not GetOption('bundle'):
+	env.Install(INSTALLPATH, TARGET)
+else:
+	env.Install(INSTALLPATH, TARGET + '.bundle')
+
 env.Alias('install', INSTALLPATH)
 
 # packaging / installing

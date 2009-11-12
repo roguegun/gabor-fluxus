@@ -100,8 +100,8 @@ unsigned CITemplate::process_opengl(ProcessOpenGLStruct *pgl)
 
 		glEnable(GL_TEXTURE_2D);
 
-		float s = texture->Width / texture->HardwareWidth;
-		float t = texture->Height / texture->HardwareHeight;
+		float s = texture->Width / (float)texture->HardwareWidth;
+		float t = texture->Height / (float)texture->HardwareHeight;
 
 		glBegin(GL_QUADS);
 		glTexCoord2d(0, 0);
