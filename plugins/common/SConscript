@@ -1,0 +1,113 @@
+################################################################################
+
+# create the environment
+
+env = Environment()
+env.Import(['TARGET', 'SOURCES', 'DEBUG', 'ECCFLAGS', 'LIBS', 'FRAMEWORKS', 'ECCFLAGS'])
+
+AddOption('--bundle', action='store_true', help='Build OSX bundle instead of .dylib')
+
+platform = env['PLATFORM']
+
+if platform == 'darwin':
+	DEFAULT_INSTALLPATH = '/opt/local/share/fluxus-016/plugins'
+else:
+	DEFAULT_INSTALLPATH = '/usr/share/fluxus-016/plugins'
+INSTALLPATH = ARGUMENTS.get('InstallDir', DEFAULT_INSTALLPATH)
+PROFILE = int(ARGUMENTS.get('profile', 0))
+
+# instead of absolute pathname tell SCons to interpret the received path names
+# as relative to the main SConstruct directory
+TARGET = '#' + TARGET
+SOURCES = ['#' + s for s in SOURCES]
+
+LIBSOURCES = ['FFGLPlugin.cpp']
+
+LIBINCLUDES = ['./']	# add current directory to the include path
+LIBPATH = []
+
+SOURCES += LIBSOURCES
+INCLUDES = LIBINCLUDES
+
+if platform == 'darwin':
+	INCLUDES += ['/opt/local/include']
+	LIBPATH += ['/opt/local/lib']
+else:
+	INCLUDES += ['/usr/include', '/usr/local/include']
+	LIBPATH += ['/usr/lib', '/usr/local/lib']
+
+CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' + \
+	    '-pedantic '
+CFLAGS = '-std=gnu99 -Wno-import '
+
+LINKFLAGS = ''
+
+if GetOption('bundle'):
+	LINKFLAGS += '-bundle -flat_namespace '
+
+if DEBUG:
+	CCFLAGS += '-ggdb2 -O0 -DDEBUG=1 '
+else:
+	CCFLAGS += '-g0 -O3 '
+
+LIBLIST = [['m', 'math.h'],
+	['GLEW', 'GL/glew.h']]
+
+if platform == 'darwin':
+    env.Append(FRAMEWORKS = ['GLUT', 'OpenGL'])
+    env.Append(FRAMEWORKS = FRAMEWORKS)
+elif platform == 'posix':
+    LIBLIST += [['GL', 'GL/gl.h'],
+	     ['GLU', 'GL/glu.h'],
+	     ['glut', 'GL/glut.h']]
+
+
+env.Append(CFLAGS = CFLAGS)
+env.Append(CCFLAGS = CCFLAGS)
+env.Append(CCFLAGS = ECCFLAGS)
+env.Append(CPPPATH = INCLUDES)
+env.Append(LINKFLAGS = LINKFLAGS)
+env.Append(LIBS = LIBS)
+env.Append(LIBPATH = LIBPATH)
+
+# check the availability of libraries
+
+if not GetOption('clean'):
+    conf = Configure(env)
+    for (lib, headers) in LIBLIST:
+	    if not conf.CheckLibWithHeader(lib, headers, 'c++'):
+		    print "error: '%s' must be installed!" % lib
+		    Exit(1)
+    env = conf.Finish()
+
+# build the plugin
+
+if GetOption('bundle'):
+	env.Program(source = SOURCES, target = TARGET)
+else:
+	env.SharedLibrary(source = SOURCES, target = TARGET, SHLIBPREFIX = '')
+
+# install
+
+if not GetOption('bundle'):
+	if platform == 'darwin':
+		TARGET = TARGET + '.dylib'
+	elif platform == 'win32':
+		TARGET = TARGET + '.dll'
+	else:
+		TARGET = TARGET + '.so'
+				
+env.Install(INSTALLPATH, TARGET)
+env.Alias('install', INSTALLPATH)
+
+# packaging / installing
+if GetOption('bundle'):
+    from scripts.osxbundle import *
+    TOOL_BUNDLE(env)
+    env.Replace(FRAMEWORKS = Split('OpenGL GLUT'))
+    env.Alias('bundle', env.MakeBundle(TARGET + '.bundle',
+        TARGET,
+        'key',
+        'ffglplugin.plist',
+        typecode = 'BNDL'))
+

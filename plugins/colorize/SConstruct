@@ -1,0 +1,12 @@
+
+TARGET = 'colorize'
+SOURCES = ['Colorize.cpp']
+LIBS = []
+FRAMEWORKS = []
+ECCFLAGS = ''
+
+DEBUG = 1
+
+SConscript('../common/SConscript',
+	exports = ['DEBUG', 'SOURCES', 'TARGET', 'LIBS', 'FRAMEWORKS', 'ECCFLAGS'])
+
