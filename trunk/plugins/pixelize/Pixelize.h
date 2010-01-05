@@ -37,8 +37,6 @@ class Pixelize : public FFGLPlugin
 		void view_ortho();
 		void view_perspective();
 
-		FFGLViewportStruct viewport;
-
 		enum {
 			PARAM_RESOLUTION = 0,
 			PARAM_LINEAR };
