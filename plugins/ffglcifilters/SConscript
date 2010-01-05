@@ -31,7 +31,7 @@ LINKFLAGS = ''
 
 if GetOption('bundle'):
 	STATIC = 1
-	LINKFLAGS += '-bundle -flat_namespace ' #-flat_namespace -undefined suppress '
+	LINKFLAGS += '-bundle '
 
 if DEBUG:
 	CCFLAGS += '-ggdb2 -O0 -DDEBUG=1 '

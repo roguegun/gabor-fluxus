@@ -52,6 +52,7 @@ Colorize::~Colorize()
 	/* called when the plugin is deinstantiated */
 }
 
+/*
 static void check_gl_errors(const char *call)
 {
     GLenum status = glGetError();
@@ -64,6 +65,7 @@ static void check_gl_errors(const char *call)
 
     cerr << call << " - " << status_msg << " (" << status << ")" << endl;
 }
+*/
 
 unsigned Colorize::process_opengl(ProcessOpenGLStruct *pgl)
 {
