@@ -43,7 +43,7 @@ CFLAGS = '-std=gnu99 -Wno-import '
 LINKFLAGS = ''
 
 if GetOption('bundle'):
-	LINKFLAGS += '-bundle -flat_namespace '
+	LINKFLAGS += '-bundle '
 
 if DEBUG:
 	CCFLAGS += '-ggdb2 -O0 -DDEBUG=1 '
