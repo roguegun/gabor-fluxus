@@ -27,7 +27,6 @@ using namespace std;
 Pixelize::Pixelize(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 {
 	/* this is called when the plugin is instantiated */
-	viewport = *vps;
 	pixelize_surface = new Surface(viewport.width, viewport.height);
 
 	pixelize_surface->bind_texture();
