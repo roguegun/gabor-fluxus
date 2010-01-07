@@ -1,6 +1,7 @@
 DEBUG = 1
 
-TARGETS = ['cibloom',
+TARGETS = ['ciadditioncompositing',
+		'cibloom',
 		'ciboxblur',
 		'cibumpdistortion',
 		'cibumpdistortionlinear',
@@ -77,6 +78,7 @@ TARGETS = ['cibloom',
 		'cizoomblur']
 
 DEFINES = [
+		'-DFILTER_NAME=\'"CIAdditionCompositing"\' -DFILTER_ID=\'"CIAC"\' ',
 		'-DFILTER_NAME=\'"CIBloom"\' -DFILTER_ID=\'"CIBL"\' ',
 		'-DFILTER_NAME=\'"CIBoxBlur"\' -DFILTER_ID=\'"CIBB"\' ',
 		'-DFILTER_NAME=\'"CIBumpDistortion"\' -DFILTER_ID=\'"CIBD"\' ',
