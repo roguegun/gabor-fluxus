@@ -122,6 +122,9 @@ unsigned Pixelize::process_opengl(ProcessOpenGLStruct *pgl)
 	glBindTexture(GL_TEXTURE_2D, texture->Handle);
 	pixelize_surface->bind();
 
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0);
 	glVertex2f(0, 0);
