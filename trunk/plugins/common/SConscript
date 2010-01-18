@@ -20,6 +20,7 @@ PROFILE = int(ARGUMENTS.get('profile', 0))
 # as relative to the main SConstruct directory
 TARGET = '#' + TARGET
 SOURCES = ['#' + s for s in SOURCES]
+STATIC = 0
 
 LIBSOURCES = ['FFGLPlugin.cpp']
 
@@ -43,6 +44,7 @@ CFLAGS = '-std=gnu99 -Wno-import '
 LINKFLAGS = ''
 
 if GetOption('bundle'):
+	STATIC = 1
 	LINKFLAGS += '-bundle '
 
 if DEBUG:
@@ -54,12 +56,19 @@ LIBLIST = [['m', 'math.h'],
 	['GLEW', 'GL/glew.h']]
 
 if platform == 'darwin':
-    env.Append(FRAMEWORKS = ['GLUT', 'OpenGL'])
+    env.Append(FRAMEWORKS = ['OpenGL'])
     env.Append(FRAMEWORKS = FRAMEWORKS)
 elif platform == 'posix':
     LIBLIST += [['GL', 'GL/gl.h'],
 	     ['GLU', 'GL/glu.h'],
 	     ['glut', 'GL/glut.h']]
+
+if STATIC:
+	if ['GLEW', 'GL/glew.h'] in LIBLIST:
+		LIBLIST.remove(['GLEW', 'GL/glew.h'])
+		if platform == 'darwin':
+			LIBS.append((File('/opt/local/lib/libGLEW.a')))
+		# TODO static GLEW lib on linux
 
 
 env.Append(CFLAGS = CFLAGS)
@@ -104,7 +113,7 @@ env.Alias('install', INSTALLPATH)
 if GetOption('bundle'):
     from scripts.osxbundle import *
     TOOL_BUNDLE(env)
-    env.Replace(FRAMEWORKS = Split('OpenGL GLUT'))
+    env.Replace(FRAMEWORKS = Split('OpenGL'))
     env.Alias('bundle', env.MakeBundle(TARGET + '.bundle',
         TARGET,
         'key',
