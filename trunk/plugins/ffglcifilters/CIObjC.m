@@ -315,24 +315,12 @@ void ci_process(unsigned *handles, int width, int height)
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-	CIContext *ci_context;
-
-	const NSOpenGLPixelFormatAttribute attr[] = {
-		NSOpenGLPFAAllRenderers,
-		NSOpenGLPFAAccelerated,
-		NSOpenGLPFANoRecovery,
-		NSOpenGLPFAColorSize, 32,
-		0
-	};
-
-	NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:(void *)&attr];
 
 	CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
 
-	ci_context = [CIContext contextWithCGLContext: CGLGetCurrentContext()
-		pixelFormat: [pf CGLPixelFormatObj]
+	CIContext *ci_context = [CIContext contextWithCGLContext: CGLGetCurrentContext()
+		pixelFormat: CGLGetPixelFormat(CGLGetCurrentContext())
 		options: nil];
-
 
 	CIFilter *filter = [CIFilter filterWithName: OBJC_FILTER_NAME];
 	[filter setDefaults];
