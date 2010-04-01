@@ -54,7 +54,7 @@ else:
 
 if env['PLATFORM'] == 'darwin':
 	IncludePaths += ['/opt/local/include']
-	Libs += ['objc']
+	#Libs += ['objc']
 	LibPaths += ['/opt/local/lib']
 	Frameworks += ['Carbon', 'QuickTime', 'OpenGL', 'AppKit', 'Foundation']
 
