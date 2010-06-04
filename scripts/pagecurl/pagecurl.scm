@@ -1,3 +1,4 @@
+(require scheme/math)
 (require scheme/set)
 
 (clear)
@@ -15,7 +16,9 @@
 ; set 2d ortho projection
 (ortho)
 (set-ortho-zoom 1)
-(frustum w 0 0 h)
+(define margin 50)
+
+(frustum (+ w margin) (- margin) (- margin) (+ h margin))
 
 (define imm-prims (set)) ; set of primitives that live for one frame only
 
@@ -87,21 +90,22 @@
 
 ;; returns the points and uv coordinates of the page's curled part:
 ;; x, y - position of the page's bottom left corner 
-;; returns 2 values: points uvs
+;; returns 4 values: clamped-x clamped-y points uvs
 ;; the first two points define the slant of the fold
 (define (page-curl-points x y)
+      (define-values (clx cly) (clamp-coords x y))
     (with-handlers ([exn:fail:contract:divide-by-zero?
                 (lambda (exn) ; page is not visible
                       (values 
+                          clx cly
                           (list (vector 0 0 0)
                                 (vector 0 ph 0))
                           (list (vector 1 1 0)
                                 (vector 1 0 0))))
                     ])
-        (let*-values ([(x y) (clamp-coords x y)]
-                      [(px py) (values 0 ph)] ; page corner
-                      [(cx cy) (values (/ (+ px x) 2) (/ (+ py y) 2))]
-                      [(vx vy) (values (- x px) (- y py))]
+        (let*-values ([(px py) (values 0 ph)] ; page corner
+                      [(cx cy) (values (/ (+ px clx) 2) (/ (+ py cly) 2))]
+                      [(vx vy) (values (- clx px) (- cly py))]
                       [(sqv) (values (sqrt (+ (* vx vx) (* vy vy))))]
                       [(nx ny) (values (/ vy sqv) (/ (- vx) sqv))] ; bisection normal
                       [(y0 xpy x0) (values (- cy (* ny (/ cx nx))) ; bisection intersection at x=0
@@ -111,11 +115,11 @@
             (let ([points (if (> x0 0)
                             (list (vector x0 0 0)
                                   (vector xpy py 0)
-                                  (vector x y 0)
+                                  (vector clx cly 0)
                                   (mirror-point 0 0 cx cy (+ cx nx) (+ cy ny)))
                             (list (vector 0 y0 0)
                                   (vector xpy py 0)
-                                  (vector x y 0)))]
+                                  (vector clx cly 0)))]
                   [uvs (if (> x0 0)
                          (list (vector (- 1 (/ x0 pw)) 1 0)
                                (vector (- 1 (/ xpy pw)) 0 0)
@@ -124,10 +128,10 @@
                          (list (vector 1 (- 1 (/ y0 ph)) 0)
                                (vector (- 1 (/ xpy pw)) 0 0)
                                (vector 1 0 0)))])
-              (values points uvs))
+              (values clx cly points uvs))
 
             #|
-            (draw-line x y px py)
+            (draw-line clx cly px py)
             (with-state
                 (colour #(1 0 0))
                 (draw-point cx cy))
@@ -162,110 +166,182 @@
 
 (define book (load-textures "book"))
 
-(define page0-shadow (load-texture "gfx/flipGrad.png"))
+(define page0-shadow (load-texture "gfx/page0-sh.png"))
 
 ;; draw pages
 ;; i - currenly flipped page index
 (define (page-curl x y i)
   (with-state
     (hint-unlit)
-    (colour 1)
-    (let*-values ([(points uvs) (page-curl-points x y)]
-                  [(flip-vx) (values 
-                               (lambda (v)
-                                 (vector (- 1 (vx v)) (vy v) (vz v))))])
+    (colour 1) ;#(.2 .2 .2))
+    (let ([flip-vx (lambda (v)    ; flip vector in x
+                       (vector (- 1 (vx v)) (vy v) (vz v)))]
+          ; projects point p onto line p0, p1
+          ; and returns scaling factor
+          [project-pnt-scale (lambda (p p0 p1)
+                                  (let* ([v0 (- (vx p) (vx p0))] ; vector of p from p0
+                                         [v1 (- (vy p) (vy p0))]
+                                         [u0 (- (vx p1) (vx p0))] ; line direction vector
+                                         [u1 (- (vy p1) (vy p0))])
+                                    (/ (+ (* v0 u0) (* v1 u1)) (+ (* u0 u0) (* u1 u1)))))]
+          ; point line distance
+          [pnt-line-distance (lambda (p p0 p1)
+                                  (let* ([v0 (- (vx p) (vx p0))] ; vector of p from p0
+                                         [v1 (- (vy p) (vy p0))]
+                                         [u0 (- (vx p1) (vx p0))] ; line direction vector
+                                         [u1 (- (vy p1) (vy p0))]
+                                         [s (/ (+ (* v0 u0) (* v1 u1)) (+ (* u0 u0) (* u1 u1)))]
+                                         [px1 (+ (vx p0) (* s u0))] ; p projected to line
+                                         [py1 (+ (vy p0) (* s u1))])
+                                    (sqrt (+ (sqr (- px1 (vx p)))
+                                             (sqr (- py1 (vy p)))))))])
 
-                 ; draw pages in display order
-                 ; page - frontside of flipped page
-                 (let ([page (build-polygons (- 8 (length points)) 'polygon)])
-                   (with-primitive page
-                       (texture (list-ref book i))
-                       (cond [(= (pdata-size) 4)
-                              (pdata-set! "p" 0 (list-ref points 0))
-                              (pdata-set! "p" 1 (list-ref points 1))
-                              (pdata-set! "p" 2 (vector pw ph 0))
-                              (pdata-set! "p" 3 (vector pw 0 0))
+      (define-values (clamp-x clamp-y points uvs) (page-curl-points x y))
+      (define shadow-opac (let ([d (vdist (vector clamp-x clamp-y 0)
+                                          (vector (* 2 pw) ph 0))]
+                                [md (/ pw 4)])
+                            (if (> d md)
+                                  1
+                                (- 1 (/ (- md d) md)))))
 
-                              (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
-                              (pdata-set! "t" 1 (flip-vx (list-ref uvs 1)))
-                              (pdata-set! "t" 2 (vector 1 0 0))
-                              (pdata-set! "t" 3 (vector 1 1 0))
-                              ]
-                             [else ; pdata-size = 5
-                               (pdata-set! "p" 0 (vector 0 0 0))
-                               (pdata-set! "p" 1 (list-ref points 0))
-                               (pdata-set! "p" 2 (list-ref points 1))
-                               (pdata-set! "p" 3 (vector pw ph 0))
-                               (pdata-set! "p" 4 (vector pw 0 0))
+      ; draw pages in display order
+      ; page - frontside of flipped page
+      (let ([page (build-polygons (- 8 (length points)) 'polygon)])
+        (with-primitive page
+                        (texture (list-ref book i))
+                        (cond [(= (pdata-size) 4)
+                               (pdata-set! "p" 0 (list-ref points 0))
+                               (pdata-set! "p" 1 (list-ref points 1))
+                               (pdata-set! "p" 2 (vector pw ph 0))
+                               (pdata-set! "p" 3 (vector pw 0 0))
 
-                               (pdata-set! "t" 0 (vector 0 1 0))
-                               (pdata-set! "t" 1 (flip-vx (list-ref uvs 0)))
-                               (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
-                               (pdata-set! "t" 3 (vector 1 0 0))
-                               (pdata-set! "t" 4 (vector 1 1 0)) ]))
-                   (imm-add page))
-
-                 ; page1 - next page after flipped one
-                 (let ([page1 (build-polygons 4 'quad-list)])
-                   (with-primitive page1
-                       (texture (if (< i (sub1 (length book)))
-                                  (list-ref book (+ i 1))
-                                  0))
-                       (pdata-set! "p" 0 (vector pw 0 0))
-                       (pdata-set! "p" 1 (vector pw ph 0))
-                       (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
-                       (pdata-set! "p" 3 (vector (* 2 pw) 0 0))
-
-                       (pdata-set! "t" 0 (vector 0 1 0))
-                       (pdata-set! "t" 1 (vector 0 0 0))
-                       (pdata-set! "t" 2 (vector 1 0 0))
-                       (pdata-set! "t" 3 (vector 1 1 0)))
-                   (imm-add page1))
-
-                 ; page -1 - page below flipped page
-                 (let ([page-1 (build-polygons (length points) 'polygon)])
-                   (when (> (length points) 2)
-                     (with-primitive page-1
-                         (texture (if (>= i 2)
-                                    (list-ref book (- i 2))
-                                    0))
-                         (cond [(= (pdata-size) 3)
-                                (pdata-set! "p" 0 (list-ref points 0))
-                                (pdata-set! "p" 1 (vector 0 ph 0))
+                               (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
+                               (pdata-set! "t" 1 (flip-vx (list-ref uvs 1)))
+                               (pdata-set! "t" 2 (vector 1 0 0))
+                               (pdata-set! "t" 3 (vector 1 1 0))
+                               ]
+                              [else ; pdata-size = 5
+                                (pdata-set! "p" 0 (vector 0 0 0))
+                                (pdata-set! "p" 1 (list-ref points 0))
                                 (pdata-set! "p" 2 (list-ref points 1))
+                                (pdata-set! "p" 3 (vector pw ph 0))
+                                (pdata-set! "p" 4 (vector pw 0 0))
 
-                                (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
-                                (pdata-set! "t" 1 (vector 0 0 0))
-                                (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))]
-                               [else
-                                 (pdata-set! "p" 0 (vector 0 0 0))
+                                (pdata-set! "t" 0 (vector 0 1 0))
+                                (pdata-set! "t" 1 (flip-vx (list-ref uvs 0)))
+                                (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
+                                (pdata-set! "t" 3 (vector 1 0 0))
+                                (pdata-set! "t" 4 (vector 1 1 0)) ]))
+        (imm-add page))
+
+      ; page1 - next page after flipped one
+      (let ([page1 (build-polygons 4 'quad-list)])
+        (with-primitive page1
+                        (texture (if (< i (sub1 (length book)))
+                                   (list-ref book (+ i 1))
+                                   0))
+                        (pdata-set! "p" 0 (vector pw 0 0))
+                        (pdata-set! "p" 1 (vector pw ph 0))
+                        (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
+                        (pdata-set! "p" 3 (vector (* 2 pw) 0 0))
+
+                        (pdata-set! "t" 0 (vector 0 1 0))
+                        (pdata-set! "t" 1 (vector 0 0 0))
+                        (pdata-set! "t" 2 (vector 1 0 0))
+                        (pdata-set! "t" 3 (vector 1 1 0)))
+        (imm-add page1))
+
+      ; page -1 - page below flipped page
+      (let ([page-1 (build-polygons (length points) 'polygon)])
+        (when (> (length points) 2)
+          (with-primitive page-1
+                          (texture (if (>= i 2)
+                                     (list-ref book (- i 2))
+                                     0))
+                          (cond [(= (pdata-size) 3)
+                                 (pdata-set! "p" 0 (list-ref points 0))
                                  (pdata-set! "p" 1 (vector 0 ph 0))
                                  (pdata-set! "p" 2 (list-ref points 1))
-                                 (pdata-set! "p" 3 (list-ref points 0))
 
-                                 (pdata-set! "t" 0 (vector 0 1 0))
+                                 (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
                                  (pdata-set! "t" 1 (vector 0 0 0))
-                                 (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
-                                 (pdata-set! "t" 3 (flip-vx (list-ref uvs 0)))])))
-                   (imm-add page-1))
+                                 (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))]
+                                [else
+                                  (pdata-set! "p" 0 (vector 0 0 0))
+                                  (pdata-set! "p" 1 (vector 0 ph 0))
+                                  (pdata-set! "p" 2 (list-ref points 1))
+                                  (pdata-set! "p" 3 (list-ref points 0))
 
-                 ; page 0 - backside of flipped page
-                 (let ([page0 (build-polygons (length points) 'polygon)])
-                   (when (> (length points) 2)
-                     (with-primitive page0
-                         (texture (if (>= i 1)
-                                    (list-ref book (- i 1))
-                                    0))
-                         (pdata-index-map!
-                           (lambda (i p)
-                             (list-ref points i))
-                           "p")
-                         (pdata-index-map!
-                           (lambda (i p)
-                             (list-ref uvs i))
-                           "t")))
-                   (imm-add page0))
-                 )))
+                                  (pdata-set! "t" 0 (vector 0 1 0))
+                                  (pdata-set! "t" 1 (vector 0 0 0))
+                                  (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
+                                  (pdata-set! "t" 3 (flip-vx (list-ref uvs 0)))])))
+        (imm-add page-1))
+
+      ; page 0 - backside of flipped page
+      (let ([page0 (build-polygons (length points) 'polygon)]
+            [sh (build-polygons (length points) 'polygon)])
+        (when (> (length points) 2)
+          (with-primitive page0
+                          (texture (if (>= i 1)
+                                     (list-ref book (- i 1))
+                                     0))
+                          (pdata-index-map!
+                            (lambda (i p)
+                              (list-ref points i))
+                            "p")
+                          (pdata-index-map!
+                            (lambda (i p)
+                              (list-ref uvs i))
+                            "t"))
+          (with-primitive sh
+                          (texture page0-shadow)
+                          (opacity shadow-opac)
+                          (pdata-index-map!
+                            (lambda (i p)
+                              (list-ref points i))
+                            "p")
+                          (cond [(= (pdata-size) 3)
+                                 (pdata-set! "t" 0 (vector 1 1 0))
+                                 (pdata-set! "t" 1 (vector 1 0 0))
+                                 (pdata-set! "t" 2 (vector 0 (project-pnt-scale (list-ref points 2)
+                                                                                (list-ref points 0)
+                                                                                (list-ref points 1)) 0))
+                                 ]
+                                [else
+                                  (let ([s2 (project-pnt-scale (list-ref points 2)
+                                                               (list-ref points 0)
+                                                               (list-ref points 1))]
+                                        [s3 (project-pnt-scale (list-ref points 3)
+                                                               (list-ref points 0)
+                                                               (list-ref points 1))]
+                                        [d2 (pnt-line-distance (list-ref points 2)
+                                                               (list-ref points 0)
+                                                               (list-ref points 1))]
+                                        [d3 (pnt-line-distance (list-ref points 3)
+                                                               (list-ref points 0)
+                                                               (list-ref points 1))]
+                                        )
+                                      ;(printf "s3:~a s2:~a~n" s3 s2)
+                                      ;(printf "d3:~a d2:~a~n" d3 d2)
+                                      (cond [(> d2 d3)
+                                                  ;(printf "1 - d3/d2: ~a~n" (- 1 (/ d3 d2)))
+                                                  (pdata-set! "t" 0 (vector 1 (+ 1 s3) 0))
+                                                  (pdata-set! "t" 1 (vector 1 0 0))
+                                                  (pdata-set! "t" 2 (vector 0 (- 1 s2) 0))
+                                                  (pdata-set! "t" 3 (vector (- 1 (/ d3 d2)) 1 0))
+                                                  ]
+                                            [else
+                                                  (pdata-set! "t" 0 (vector 1 1 0))
+                                                  (pdata-set! "t" 1 (vector 1 (- s2 1) 0))
+                                                  (pdata-set! "t" 2 (vector (- 1 (/ d2 d3)) 0 0))
+                                                  (pdata-set! "t" 3 (vector 0 s3 0))]))
+
+                                  ])))
+                        
+        (imm-add page0)
+        (imm-add sh))
+      )))
 
 (define (animate)
     (imm-destroy)
