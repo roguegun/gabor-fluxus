@@ -168,6 +168,7 @@
 
 (define page0-shadow (load-texture "gfx/page0-sh.png"))
 (define page-1-shadow (load-texture "gfx/page-1-sh.png"))
+(define page-shadow (load-texture "gfx/page-sh.png"))
 
 ;; draw pages
 ;; i - currenly flipped page index
@@ -175,7 +176,7 @@
   (with-state
     (hint-unlit)
     (colour 1) ;#(.2 .2 .2))
-    (let ([flip-vx (lambda (v)    ; flip vector in x
+    (let* ([flip-vx (lambda (v)    ; flip vector in x
                        (vector (- 1 (vx v)) (vy v) (vz v)))]
           ; projects point p onto line p0, p1
           ; and returns scaling factor
@@ -187,15 +188,21 @@
                                     (/ (+ (* v0 u0) (* v1 u1)) (+ (* u0 u0) (* u1 u1)))))]
           ; point line distance
           [pnt-line-distance (lambda (p p0 p1)
-                                  (let* ([v0 (- (vx p) (vx p0))] ; vector of p from p0
-                                         [v1 (- (vy p) (vy p0))]
-                                         [u0 (- (vx p1) (vx p0))] ; line direction vector
+                                  (let* ([u0 (- (vx p1) (vx p0))] ; line direction vector
                                          [u1 (- (vy p1) (vy p0))]
-                                         [s (/ (+ (* v0 u0) (* v1 u1)) (+ (* u0 u0) (* u1 u1)))]
+                                         [s (project-pnt-scale p p0 p1)]
                                          [px1 (+ (vx p0) (* s u0))] ; p projected to line
                                          [py1 (+ (vy p0) (* s u1))])
                                     (sqrt (+ (sqr (- px1 (vx p)))
-                                             (sqr (- py1 (vy p)))))))])
+                                             (sqr (- py1 (vy p)))))))]
+          ; point line vector
+          [pnt-line-vector (lambda (p p0 p1)
+                                  (let* ([u0 (- (vx p1) (vx p0))] ; line direction vector
+                                         [u1 (- (vy p1) (vy p0))]
+                                         [s (project-pnt-scale p p0 p1)]
+                                         [px1 (+ (vx p0) (* s u0))] ; p projected to line
+                                         [py1 (+ (vy p0) (* s u1))])
+                                    (vector (- (vx p) px1) (- (vy p) py1) 0)))])
 
       (define-values (clamp-x clamp-y points uvs) (page-curl-points x y))
       (define shadow-opac (let ([d (vdist (vector clamp-x clamp-y 0)
@@ -206,8 +213,27 @@
                                 (- 1 (/ (- md d) md)))))
 
       ; draw pages in display order
+      ; page1 - next page after flipped one
+      ; TODO: shadows would be much easier to add if fluxus supported stencil buffer
+      (let ([page1 (build-polygons 4 'quad-list)])
+        (with-primitive page1
+                        (texture (if (< i (sub1 (length book)))
+                                   (list-ref book (+ i 1))
+                                   0))
+                        (pdata-set! "p" 0 (vector pw 0 0))
+                        (pdata-set! "p" 1 (vector pw ph 0))
+                        (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
+                        (pdata-set! "p" 3 (vector (* 2 pw) 0 0))
+
+                        (pdata-set! "t" 0 (vector 0 1 0))
+                        (pdata-set! "t" 1 (vector 0 0 0))
+                        (pdata-set! "t" 2 (vector 1 0 0))
+                        (pdata-set! "t" 3 (vector 1 1 0)))
+        (imm-add page1))
+
       ; page - frontside of flipped page
-      (let ([page (build-polygons (- 8 (length points)) 'polygon)])
+      (let* ([page (build-polygons (- 8 (length points)) 'polygon)]
+             [sh (build-polygons 4 'quad-list)])
         (with-primitive page
                         (texture (list-ref book i))
                         (cond [(= (pdata-size) 4)
@@ -233,24 +259,27 @@
                                 (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
                                 (pdata-set! "t" 3 (vector 1 0 0))
                                 (pdata-set! "t" 4 (vector 1 1 0)) ]))
-        (imm-add page))
+        (when (> (length points) 2)
+          (with-primitive sh
+                        ;(colour #(1 0 0 .5))
+                        (texture page-shadow) 
+                        (let* ([p0 (list-ref points 0)]
+                               [p1 (list-ref points 1)]
+                               [vd (vsub p1 p0)]
+                               [nd (pnt-line-vector (list-ref points 2) p0 p1)])
 
-      ; page1 - next page after flipped one
-      (let ([page1 (build-polygons 4 'quad-list)])
-        (with-primitive page1
-                        (texture (if (< i (sub1 (length book)))
-                                   (list-ref book (+ i 1))
-                                   0))
-                        (pdata-set! "p" 0 (vector pw 0 0))
-                        (pdata-set! "p" 1 (vector pw ph 0))
-                        (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
-                        (pdata-set! "p" 3 (vector (* 2 pw) 0 0))
-
-                        (pdata-set! "t" 0 (vector 0 1 0))
-                        (pdata-set! "t" 1 (vector 0 0 0))
-                        (pdata-set! "t" 2 (vector 1 0 0))
-                        (pdata-set! "t" 3 (vector 1 1 0)))
-        (imm-add page1))
+                               (pdata-set! "p" 0 (vsub p0 vd))
+                               (pdata-set! "p" 1 (vadd p1 vd))
+                               (pdata-set! "p" 2 (vadd (pdata-ref "p" 1) nd))
+                               (pdata-set! "p" 3 (vadd (pdata-ref "p" 0) nd))
+                               
+                               (pdata-set! "t" 0 #(0 1 0))
+                               (pdata-set! "t" 1 #(0 0 0))
+                               (pdata-set! "t" 2 #(1 0 0))
+                               (pdata-set! "t" 3 #(1 1 0))
+                          )))
+        (imm-add page)
+        (imm-add sh))
 
       ; page -1 - page below flipped page
       (let ([page-1 (build-polygons (length points) 'polygon)]
