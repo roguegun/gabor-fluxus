@@ -218,7 +218,25 @@
                                          [s (project-pnt-scale p p0 p1)]
                                          [px1 (+ (vx p0) (* s u0))] ; p projected to line
                                          [py1 (+ (vy p0) (* s u1))])
-                                    (vector (- (vx p) px1) (- (vy p) py1) 0)))])
+                                    (vector (- (vx p) px1) (- (vy p) py1) 0)))]
+
+          ; page textures
+          [page-1-txt    (with-handlers ([exn:fail:contract?
+                                          (lambda (exn) 0)])
+                                (if (eq? corner 'bottom-left)
+                                     (list-ref book (- i 2))
+                                     (list-ref book (+ i 2))))]
+          [page0-txt    (with-handlers ([exn:fail:contract?
+                                          (lambda (exn) 0)])
+                                (if (eq? corner 'bottom-left)
+                                     (list-ref book (- i 1))
+                                     (list-ref book (+ i 1))))]
+          [page-txt    (with-handlers ([exn:fail:contract?
+                                          (lambda (exn) 0)])
+                                (if (eq? corner 'bottom-left)
+                                     (list-ref book (+ i 1))
+                                     (list-ref book (- i 1))))]
+          )
 
       (define-values (clamp-x clamp-y points uvs) (page-curl-points x y))
       (define shadow-opac (let ([d (vdist (vector clamp-x clamp-y 0)
@@ -233,9 +251,9 @@
       ; TODO: shadows would be much easier to add if fluxus supported stencil buffer
       (let ([page1 (build-polygons 4 'quad-list)])
         (with-primitive page1
-                        (texture (if (< i (sub1 (length book)))
-                                   (list-ref book (+ i 1))
-                                   0))
+                        (texture page-txt)
+                        (when (zero? page-txt)
+                          (colour 0))
                         (pdata-set! "p" 0 (vector pw 0 0))
                         (pdata-set! "p" 1 (vector pw ph 0))
                         (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
@@ -302,10 +320,8 @@
             [sh (build-polygons (length points) 'polygon)])
         (when (> (length points) 2)
           (with-primitive page-1
-                          (texture (if (>= i 2)
-                                     (list-ref book (- i 2))
-                                     0))
-                          (when (< i 2)
+                          (texture page-1-txt)
+                          (when (zero? page-1-txt)
                                 (colour 0))
                           (cond [(= (pdata-size) 3)
                                  (pdata-set! "p" 0 (list-ref points 0))
@@ -379,9 +395,9 @@
             [sh (build-polygons (length points) 'polygon)])
         (when (> (length points) 2)
           (with-primitive page0
-                          (texture (if (>= i 1)
-                                     (list-ref book (- i 1))
-                                     0))
+                          (texture page0-txt)
+                          (when (zero? page0-txt)
+                            (colour 0))
                           (pdata-index-map!
                             (lambda (i p)
                               (list-ref points i))
