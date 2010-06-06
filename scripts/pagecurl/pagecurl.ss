@@ -51,6 +51,20 @@
 						(string->path dir)))))
 
 
+;; loads all sounds from dir
+(define (load-sounds dir)
+    (map
+		(lambda (sndp)
+			(oa-load-sample (path->string sndp)))
+		(find-files
+			(lambda (x)
+				(let ([s (path->string x)])
+					(string-suffix? ".wav" s)))
+			(string->path dir))))
+
+(oa-start)
+(define sounds (load-sounds "sfx"))
+
 (define imm-prims (set)) ; set of primitives that live for one frame only
 
 ;; destroy all one-frame primitives
@@ -474,16 +488,19 @@
 (define pc-t 1.0)
 (define pc-page 0)
 (define pc-dir 'bottom-right) ; one of '(bottom-left bottom-right)
+(define pc-speed 1.5)
 
 (define (pc-next)
     (when (and (eq? pc-state 'idle)
                (< pc-page (- (length book) 1)))
-        (set! pc-state 'next)))
+        (set! pc-state 'next)
+		(oa-play (list-ref sounds (random (length sounds))) #(0 0 0) .9 1)))
 
 (define (pc-prev)
     (when (and (eq? pc-state 'idle)
                (> pc-page 0))
-        (set! pc-state 'prev)))
+        (set! pc-state 'prev)
+		(oa-play (list-ref sounds (random (length sounds))) #(0 0 0) .9 1)))
 
 (define (pc-update)
     (imm-destroy)
@@ -494,7 +511,7 @@
                     (set! pc-t 1)
                     (set! pc-page (add1 pc-page)))
                 (if (> pc-t 0)
-                    (set! pc-t (- pc-t (delta)))
+                    (set! pc-t (- pc-t (* pc-speed (delta))))
                     (begin
                         (set! pc-state 'idle)
                         (set! pc-t 0)
@@ -506,7 +523,7 @@
                     (set! pc-t 0)
                     (set! pc-page (sub1 pc-page)))
                 (if (< pc-t 1)
-                    (set! pc-t (+ pc-t (delta)))
+                    (set! pc-t (+ pc-t (* (delta) pc-speed)))
                     (begin
                         (set! pc-state 'idle)
                         (set! pc-t 1)
