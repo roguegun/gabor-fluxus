@@ -453,10 +453,58 @@
         (imm-add sh))
       )))
 
-(define (animate)
-    (imm-destroy)
-    (draw-point (mouse-x) (mouse-y))
-    (page-curl (mouse-x) (mouse-y) 3 'bottom-right))
+(define (move-corner t)
+    (hermite (vector -1 ph 0)
+             (vector (add1 (* 2 pw)) ph 0) ; FIXME: display bug at (2pw, ph)
+             (vector 400 -400 0)
+             (vector 400 550 0) t))
 
-(every-frame (animate))
+(define pc-state 'idle) ; one of '(idle next prev)
+(define pc-t 1.0)
+(define pc-page 0)
+(define pc-dir 'bottom-right) ; one of '(bottom-left bottom-right)
+
+(define (pc-next)
+    (when (and (eq? pc-state 'idle)
+               (< pc-page (- (length book) 1)))
+        (set! pc-state 'next)))
+
+(define (pc-prev)
+    (when (and (eq? pc-state 'idle)
+               (> pc-page 0))
+        (set! pc-state 'prev)))
+
+(define (pc-update)
+    (imm-destroy)
+
+    (cond [(eq? pc-state 'next)
+                (when (eq? pc-dir 'bottom-left)
+                    (set! pc-dir 'bottom-right)
+                    (set! pc-t 1)
+                    (set! pc-page (add1 pc-page)))
+                (if (> pc-t 0)
+                    (set! pc-t (- pc-t (delta)))
+                    (begin
+                        (set! pc-state 'idle)
+                        (set! pc-t 0)
+                        (set! pc-page (add1 pc-page))
+                        (set! pc-dir 'bottom-left)))]
+          [(eq? pc-state 'prev)
+                (when (eq? pc-dir 'bottom-right)
+                    (set! pc-dir 'bottom-left)
+                    (set! pc-t 0)
+                    (set! pc-page (sub1 pc-page)))
+                (if (< pc-t 1)
+                    (set! pc-t (+ pc-t (delta)))
+                    (begin
+                        (set! pc-state 'idle)
+                        (set! pc-t 1)
+                        (set! pc-page (sub1 pc-page))
+                        (set! pc-dir 'bottom-right)))])
+
+    (let ([v (move-corner pc-t)])
+        (draw-point (vx v) (vy v))
+        (page-curl (vx v) (vy v) pc-page pc-dir)))
+
+(every-frame (pc-update))
 
