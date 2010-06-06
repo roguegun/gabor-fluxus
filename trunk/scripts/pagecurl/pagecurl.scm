@@ -172,12 +172,28 @@
 
 ;; draw pages
 ;; i - currenly flipped page index
-(define (page-curl x y i)
+;; corner - page corner ('bottom-left 'bottom-right)
+(define (page-curl x y i corner)
   (with-state
+    (backfacecull 0)
     (hint-unlit)
-    (colour 1) ;#(.2 .2 .2))
+    (colour 1)
+    (cond [(eq? corner 'bottom-right)
+               (set! x (- w x))
+               (translate (vector (/ w 2) (/ h 2) 0))
+               (scale #(-1 1 1))
+               (translate (vector (- (/ w 2)) (- (/ h 2)) 0))])
+
     (let* ([flip-vx (lambda (v)    ; flip vector in x
                        (vector (- 1 (vx v)) (vy v) (vz v)))]
+
+          ; set texture coords according to direction
+          [pdata-t-set! (lambda (i v)
+                          (cond [(eq? corner 'bottom-right)
+                                     (pdata-set! "t" i (vector (- 1 (vx v)) (vy v) (vz v)))]
+                                [else
+                                      (pdata-set! "t" i v)]))]
+
           ; projects point p onto line p0, p1
           ; and returns scaling factor
           [project-pnt-scale (lambda (p p0 p1)
@@ -225,10 +241,10 @@
                         (pdata-set! "p" 2 (vector (* 2 pw) ph 0))
                         (pdata-set! "p" 3 (vector (* 2 pw) 0 0))
 
-                        (pdata-set! "t" 0 (vector 0 1 0))
-                        (pdata-set! "t" 1 (vector 0 0 0))
-                        (pdata-set! "t" 2 (vector 1 0 0))
-                        (pdata-set! "t" 3 (vector 1 1 0)))
+                        (pdata-t-set! 0 (vector 0 1 0))
+                        (pdata-t-set! 1 (vector 0 0 0))
+                        (pdata-t-set! 2 (vector 1 0 0))
+                        (pdata-t-set! 3 (vector 1 1 0)))
         (imm-add page1))
 
       ; page - frontside of flipped page
@@ -242,10 +258,10 @@
                                (pdata-set! "p" 2 (vector pw ph 0))
                                (pdata-set! "p" 3 (vector pw 0 0))
 
-                               (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
-                               (pdata-set! "t" 1 (flip-vx (list-ref uvs 1)))
-                               (pdata-set! "t" 2 (vector 1 0 0))
-                               (pdata-set! "t" 3 (vector 1 1 0))
+                               (pdata-t-set! 0 (flip-vx (list-ref uvs 0)))
+                               (pdata-t-set! 1 (flip-vx (list-ref uvs 1)))
+                               (pdata-t-set! 2 (vector 1 0 0))
+                               (pdata-t-set! 3 (vector 1 1 0))
                                ]
                               [else ; pdata-size = 5
                                 (pdata-set! "p" 0 (vector 0 0 0))
@@ -254,14 +270,13 @@
                                 (pdata-set! "p" 3 (vector pw ph 0))
                                 (pdata-set! "p" 4 (vector pw 0 0))
 
-                                (pdata-set! "t" 0 (vector 0 1 0))
-                                (pdata-set! "t" 1 (flip-vx (list-ref uvs 0)))
-                                (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
-                                (pdata-set! "t" 3 (vector 1 0 0))
-                                (pdata-set! "t" 4 (vector 1 1 0)) ]))
+                                (pdata-t-set! 0 (vector 0 1 0))
+                                (pdata-t-set! 1 (flip-vx (list-ref uvs 0)))
+                                (pdata-t-set! 2 (flip-vx (list-ref uvs 1)))
+                                (pdata-t-set! 3 (vector 1 0 0))
+                                (pdata-t-set! 4 (vector 1 1 0)) ]))
         (when (> (length points) 2)
           (with-primitive sh
-                        ;(colour #(1 0 0 .5))
                         (texture page-shadow) 
                         (let* ([p0 (list-ref points 0)]
                                [p1 (list-ref points 1)]
@@ -273,10 +288,11 @@
                                (pdata-set! "p" 2 (vadd (pdata-ref "p" 1) nd))
                                (pdata-set! "p" 3 (vadd (pdata-ref "p" 0) nd))
                                
-                               (pdata-set! "t" 0 #(0 1 0))
-                               (pdata-set! "t" 1 #(0 0 0))
-                               (pdata-set! "t" 2 #(1 0 0))
-                               (pdata-set! "t" 3 #(1 1 0))
+                               ; texture blending artefacts around vertical borders
+                               (pdata-set! "t" 0 #(0.03 1 0))
+                               (pdata-set! "t" 1 #(0.03 0 0))
+                               (pdata-set! "t" 2 #(.97 0 0))
+                               (pdata-set! "t" 3 #(.97 1 0))
                           )))
         (imm-add page)
         (imm-add sh))
@@ -296,19 +312,19 @@
                                  (pdata-set! "p" 1 (vector 0 ph 0))
                                  (pdata-set! "p" 2 (list-ref points 1))
 
-                                 (pdata-set! "t" 0 (flip-vx (list-ref uvs 0)))
-                                 (pdata-set! "t" 1 (vector 0 0 0))
-                                 (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))]
+                                 (pdata-t-set! 0 (flip-vx (list-ref uvs 0)))
+                                 (pdata-t-set! 1 (vector 0 0 0))
+                                 (pdata-t-set! 2 (flip-vx (list-ref uvs 1)))]
                                 [else
                                   (pdata-set! "p" 0 (vector 0 0 0))
                                   (pdata-set! "p" 1 (vector 0 ph 0))
                                   (pdata-set! "p" 2 (list-ref points 1))
                                   (pdata-set! "p" 3 (list-ref points 0))
 
-                                  (pdata-set! "t" 0 (vector 0 1 0))
-                                  (pdata-set! "t" 1 (vector 0 0 0))
-                                  (pdata-set! "t" 2 (flip-vx (list-ref uvs 1)))
-                                  (pdata-set! "t" 3 (flip-vx (list-ref uvs 0)))]))
+                                  (pdata-t-set! 0 (vector 0 1 0))
+                                  (pdata-t-set! 1 (vector 0 0 0))
+                                  (pdata-t-set! 2 (flip-vx (list-ref uvs 1)))
+                                  (pdata-t-set! 3 (flip-vx (list-ref uvs 0)))]))
           (with-primitive sh
               (texture page-1-shadow)
               (opacity shadow-opac)
@@ -353,7 +369,6 @@
                                           (pdata-set! "t" 1 (vector (- 1 (/ d2 d3)) 0 0))
                                           (pdata-set! "t" 2 (vector 1 (- 1 s2) 0))
                                           (pdata-set! "t" 3 (vector 1 1 0))]))
-
                           ])
           )
         (imm-add page-1)
@@ -371,10 +386,8 @@
                             (lambda (i p)
                               (list-ref points i))
                             "p")
-                          (pdata-index-map!
-                            (lambda (i p)
-                              (list-ref uvs i))
-                            "t"))
+                          (for ([i (in-range (pdata-size))])
+                               (pdata-t-set! i (list-ref uvs i))))
           (with-primitive sh
                           (texture page0-shadow)
                           (opacity shadow-opac)
@@ -427,7 +440,7 @@
 (define (animate)
     (imm-destroy)
     (draw-point (mouse-x) (mouse-y))
-    (page-curl (mouse-x) (mouse-y) 3))
+    (page-curl (mouse-x) (mouse-y) 3 'bottom-right))
 
 (every-frame (animate))
 
