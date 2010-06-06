@@ -1,24 +1,55 @@
+#lang scheme
+
+(require fluxus-017/fluxus)
 (require scheme/math)
 (require scheme/set)
 
-(clear)
-
-(hint-ignore-depth)
-
-; hack lock-camera
-(set-camera-transform (mtranslate #(0 0 -10)))
+(provide
+  pc-init
+  pc-update
+  pc-next
+  pc-prev
+  pc-load)
 
 (define-values (w h) (vector->values (get-screen-size)))
 
 ; page resolution
 (define-values (pw ph) (values (/ w 2) h))
-
-; set 2d ortho projection
-(ortho)
-(set-ortho-zoom 1)
 (define margin 50)
 
-(frustum (+ w margin) (- margin) (- margin) (+ h margin))
+(define book '())
+
+(define (pc-init)
+	(clear)
+
+	(hint-ignore-depth)
+
+	; hack lock-camera
+	(set-camera-transform (mtranslate #(0 0 -10)))
+
+	; set 2d ortho projection
+	(ortho)
+	(set-ortho-zoom 1)
+
+	(set! book '())
+	(frustum (+ w margin) (- margin) (- margin) (+ h margin)))
+
+;; load book pages
+(require scheme/file)
+(require srfi/13)
+
+;; loads a list of texture handles for the png files in the
+;; given directory
+(define (pc-load dir)
+    (set! book (map
+					(lambda (imgp)
+						(load-texture (path->string imgp)))
+					(find-files
+						(lambda (x)
+							(let ([s (path->string x)])
+								(string-suffix? ".png" s)))
+						(string->path dir)))))
+
 
 (define imm-prims (set)) ; set of primitives that live for one frame only
 
@@ -145,26 +176,6 @@
                 (draw-point xpy py))
             |#
             )))
-
-;; load book pages
-(require scheme/file)
-(require srfi/13)
-
-;(texture-params 0 '(wrap-s clamp wrap-t clamp))
-
-;; returns a list of texture handles for the png files in the
-;; given directory
-(define (load-textures dir)
-    (map
-        (lambda (imgp)
-            (load-texture (path->string imgp)))
-        (find-files
-            (lambda (x)
-                (let ([s (path->string x)])
-                    (string-suffix? ".png" s)))
-            (string->path dir))))
-
-(define book (load-textures "book"))
 
 (define page0-shadow (load-texture "gfx/page0-sh.png"))
 (define page-1-shadow (load-texture "gfx/page-1-sh.png"))
@@ -503,8 +514,6 @@
                         (set! pc-dir 'bottom-right)))])
 
     (let ([v (move-corner pc-t)])
-        (draw-point (vx v) (vy v))
+        ;(draw-point (vx v) (vy v))
         (page-curl (vx v) (vy v) pc-page pc-dir)))
-
-(every-frame (pc-update))
 
