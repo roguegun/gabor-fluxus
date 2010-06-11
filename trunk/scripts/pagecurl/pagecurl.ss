@@ -478,11 +478,23 @@
         (imm-add sh))
       )))
 
+(define corner0-tangent (vector 400 -400 0))
+(define corner1-tangent (vector 400 550 0))
+
 (define (move-corner t)
-    (hermite (vector -1 ph 0)
-             (vector (add1 (* 2 pw)) ph 0) ; FIXME: display bug at (2pw, ph)
-             (vector 400 -400 0)
-             (vector 400 550 0) t))
+    (hermite (vector -1 ph 0) ; FIXME: display bug at (0, ph) and (2pw, ph)
+             (vector (add1 (* 2 pw)) ph 0)
+             corner0-tangent
+             corner1-tangent t))
+
+(define (random-corner-tangents)
+  (let ([rnd (lambda (a b)
+			   (if (positive? (- b a))
+				  (+ a (random (- b a)))
+				  (- a (random (- a b)))))])
+	(set! corner0-tangent (vector (rnd 400 600) (rnd 200 -700) 0))
+	(set! corner1-tangent (vector (rnd 400 600) (rnd 200 700) 0))
+	))
 
 (define pc-state 'idle) ; one of '(idle next prev)
 (define pc-t 1.0)
@@ -494,12 +506,14 @@
     (when (and (eq? pc-state 'idle)
                (< pc-page (- (length book) 1)))
         (set! pc-state 'next)
+		;(random-corner-tangents)
 		(oa-play (list-ref sounds (random (length sounds))) #(0 0 0) .9 1)))
 
 (define (pc-prev)
     (when (and (eq? pc-state 'idle)
                (> pc-page 0))
         (set! pc-state 'prev)
+		;(random-corner-tangents)
 		(oa-play (list-ref sounds (random (length sounds))) #(0 0 0) .9 1)))
 
 (define (pc-update)
