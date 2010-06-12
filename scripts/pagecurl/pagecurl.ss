@@ -2,7 +2,6 @@
 
 (require fluxus-017/fluxus)
 (require scheme/math)
-(require scheme/set)
 
 (provide
   pc-init
@@ -31,7 +30,13 @@
 	(ortho)
 	(set-ortho-zoom 1)
 
+	; init book
 	(set! book '())
+	(set! pc-page 0)
+	(set! pc-t 1.0)
+	(set! pc-state 'idle)
+	(set! pc-dir 'bottom-right)
+
 	(frustum (+ w margin) (- margin) (- margin) (+ h margin)))
 
 ;; load book pages
@@ -65,18 +70,18 @@
 (oa-start)
 (define sounds (load-sounds "sfx"))
 
-(define imm-prims (set)) ; set of primitives that live for one frame only
+(define imm-prims '()) ; set of primitives that live for one frame only
 
 ;; destroy all one-frame primitives
 (define (imm-destroy)
-    (set-for-each
-        imm-prims
-        destroy)
-    (set! imm-prims (set)))
+    (for-each
+        destroy
+        imm-prims)
+    (set! imm-prims '()))
 
 ;; add primitive to one-frame primitives
 (define (imm-add p)
-  (set! imm-prims (set-add imm-prims p)))
+  (set! imm-prims (cons p imm-prims)))
 
 ;; debug primitives
 
