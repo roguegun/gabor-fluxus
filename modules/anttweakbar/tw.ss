@@ -36,6 +36,8 @@
 		 tw-add-colour
 		 tw-add-quat
 		 tw-add-list
+		 tw-save-config
+		 tw-load-config
 		 fluxus-reshape-callback
 		 fluxus-input-callback
 		 fluxus-input-release-callback)
@@ -574,23 +576,26 @@
 					   #f])]
 		 [conv (hash-ref type->conv (quasiquote (unquote type)) #f)])
 	(if type
-		(tw-add-var-cb bar name (hash-ref type->twtype (quasiquote (unquote type)))
-					   (lambda (value-ptr client-data)
-						 (set-box! bvar (ptr-ref value-ptr type)))
-					   (lambda (value-ptr client-data)
-						 (with-handlers ([exn:fail?
-										   (lambda (exn)
-											 (printf "~a~nVariable removed.~n" exn)
-											 (set! variables-to-remove (cons (cons bar name) variables-to-remove)))])
-							 (ptr-set! value-ptr type (conv (unbox bvar)))))
-					   #f
-					   def)
+	  	(begin
+		  	(hash-set! tw-vars name bvar)
+			(tw-add-var-cb bar name (hash-ref type->twtype (quasiquote (unquote type)))
+						   (lambda (value-ptr client-data)
+							 (set-box! bvar (ptr-ref value-ptr type)))
+						   (lambda (value-ptr client-data)
+							 (with-handlers ([exn:fail?
+											   (lambda (exn)
+												 (printf "~a~nVariable removed.~n" exn)
+												 (set! variables-to-remove (cons (cons bar name) variables-to-remove)))])
+								 (ptr-set! value-ptr type (conv (unbox bvar)))))
+						   #f
+						   def))
 		(error 'tw-add-var "unknow type variable ~a" var))))
 
 ;; tw-add-vector
 ;; helper function to add dir3f, color3f and quat4f types
 
 (define (tw-add-vector bar name twtype size bvar [def ""])
+	(hash-set! tw-vars name bvar)
 	(tw-add-var-cb bar name twtype 
 				   (lambda (value-ptr client-data)
 					 (set-box! bvar (list->vector
@@ -764,6 +769,7 @@
 						  choices
 						  (build-list (length choices) values))]
 		 [enum-uint (tw-define-enum (string-append name "-type") #f 0)])
+	(hash-set! tw-vars name bvar)
 	(tw-add-var-cb bar name enum-uint
 				   (lambda (value-ptr client-data)
 					 (set-box! bvar (list-ref choices (ptr-ref value-ptr _uint))))
@@ -775,4 +781,98 @@
 						 (ptr-set! value-ptr _uint (cdr (assoc (unbox bvar) enum-assoc)))))
 				   #f
 				   def)))
+
+;; save/load variable plist
+(require xml/plist)
+
+; variable hash table name->boxed var, TODO: add bar name
+(define tw-vars (make-hash))
+
+;; StartFunctionDoc-en
+;; tw-save-config [filename]
+;; Returns:
+;;  void
+;; Description:
+;; Saves all variables to an xml/plist config file.
+;; Example:
+;; (define zoom (box 1.0))
+;; (tw-add-var bar "zoom" zoom)
+;; (tw-save-config)
+;; EndFunctionDoc
+
+(define (tw-save-config [filename "config.plist"])
+  (let ([hash-dict (cons 'dict
+						(hash-map
+						  tw-vars
+						  (lambda (k bvar)
+							(let* ([var (unbox bvar)])
+								(list 'assoc-pair k
+									  (cond [(and (number? var)
+												  (inexact? var)) (list 'real var)]
+											[(and (number? var)
+												  (exact? var)) (list 'integer var)]
+											[(symbol? var) (symbol->string var)]
+											[(boolean? var) (if var
+															  (list 'true)
+															  (list 'false))]
+											[(vector? var) (cons 'array
+																 (map
+																   (lambda (e)
+																	 (list 'real e))
+																   (vector->list var)))]))))))]
+		[port (open-output-file filename #:exists 'replace)])
+	(write-plist hash-dict port)
+	(close-output-port port)))
+
+;; StartFunctionDoc-en
+;; tw-load-config [filename]
+;; Returns:
+;;  void
+;; Description:
+;; Loads variable config plist file saved by tw-save-config.
+;; Example:
+;; (define zoom (box 1.0))
+;; (tw-add-var bar "zoom" zoom)
+;; (tw-load-config)
+;; EndFunctionDoc
+
+(define (tw-load-config [filename "config.plist"])
+  (letrec ([port (with-handlers ([exn:fail:filesystem?
+								(lambda (e)
+								  (printf "tw-load-config: ~a~n" (exn-message e))
+								  #f)])
+					(open-input-file filename))]
+		   [plist (when port
+					  (read-plist port))]
+		   [read-pl-value (lambda (pl)
+								(if (string? pl)
+								  (string->symbol pl)
+								  (case (car pl)
+									[(true) #t]
+									[(false) #f]
+									[(integer real) (cadr pl)]
+									[(array) (list->vector (map read-pl-value (cdr pl)))])))]
+		   [read-assoc-pair (lambda (ap)
+								(let ([name (cadr ap)]
+									  [val (caddr ap)])
+								  (cons name (read-pl-value val))))]
+		   [read-dict (lambda (plist) ; convert plist to (name value) pairs
+						  (cond [(empty? plist) '()]
+								[(eq? (car plist) 'dict)
+								 	(read-dict (cdr plist))]
+								[else
+								  (cons (read-assoc-pair (car plist))
+										(read-dict (cdr plist)))]))])
+	(when port
+		(close-input-port port)
+		;(displayln plist)
+		(for-each
+		  (lambda (kvp)
+			(let* ([key (car kvp)]
+				   [value (cdr kvp)]
+				   [bvar (hash-ref tw-vars key #f)])
+			  (if bvar
+				(set-box! bvar value)
+				(printf "tw-load-config: variable ~a not found.~n" key))))
+		  (read-dict plist)))))
 

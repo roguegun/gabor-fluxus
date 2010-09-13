@@ -10,11 +10,9 @@
  
 (define light (make-light 'directional 'free))
 (light-specular light #(1 1 1))
-
-; intialize the anttweakbar module
+ 
 (tw-init)
 
-; add a bar and iconify it
 (define bar (tw-new-bar "TweakBar"))
 (tw-define "TweakBar iconified=true")
 
@@ -64,6 +62,9 @@
 ; it's possible values are associated with the given list of symbols
 (tw-add-list bar "Shape" shape '(torus cube cylinder)
              "keyIncr='<' keyDecr='>' help='Change object shape.'")
+
+(tw-add-button bar "Save config" (lambda () (tw-save-config)))
+(tw-add-button bar "Load config" (lambda () (tw-load-config)))
 
 (every-frame
   (begin
