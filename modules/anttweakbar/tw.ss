@@ -36,6 +36,9 @@
 		 tw-add-colour
 		 tw-add-quat
 		 tw-add-list
+		 tw-get-bar-by-name
+		 tw-delete-bar
+		 tw-delete-all-bars
 		 tw-save-config
 		 tw-load-config
 		 fluxus-reshape-callback
@@ -120,6 +123,7 @@
 ;; EndSectionDoc
 
 (define _twbar-ptr (_cpointer 'twbar))
+(define _twbar-ptr/null (_or-null _twbar-ptr))
 
 ;; twtype defines
 ;; does not work as an enum because tw-define-enum adds new types to the list
@@ -781,6 +785,56 @@
 						 (ptr-set! value-ptr _uint (cdr (assoc (unbox bvar) enum-assoc)))))
 				   #f
 				   def)))
+
+;; StartFunctionDoc-en
+;; tw-get-bar-by-name name-string
+;; Returns:
+;;  bar identifier or #f if the bar is not found
+;; Description:
+;;  Returns the bar by the given name.
+;; Parameters:
+;;  name
+;;   The name of requested bar.
+;; Example:
+;; EndFunctionDoc
+
+(define tw-get-bar-by-name
+	(get-ffi-obj "TwGetBarByName" libtw
+		(_fun _string
+			  -> _twbar-ptr/null)))
+
+;; StartFunctionDoc-en
+;; tw-delete-bar bar-id
+;; Returns:
+;;  boolean
+;; Description:
+;;  This function deletes a tweak bar previously created by tw-new-bar.
+;; Parameters:
+;;  bar
+;;   Identifier to the tweak bar to delete.
+;; Example:
+;; (define t (tw-new-bar "TweakBar"))
+;; (tw-delete-bar t)
+;; EndFunctionDoc
+
+(define tw-delete-bar
+	(get-ffi-obj "TwDeleteBar" libtw
+		(_fun _twbar-ptr
+			  -> _bool)))
+
+;; StartFunctionDoc-en
+;; tw-delete-all-bars
+;; Returns:
+;;  boolean
+;; Description:
+;;  Deletes all bars previously created by tw-new-bar.
+;; Example:
+;; (tw-delete-all-bars)
+;; EndFunctionDoc
+
+(define tw-delete-all-bars
+	(get-ffi-obj "TwDeleteAllBars" libtw
+		(_fun -> _bool)))
 
 ;; save/load variable plist
 (require xml/plist)
