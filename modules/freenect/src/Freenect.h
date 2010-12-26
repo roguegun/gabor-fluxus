@@ -18,6 +18,7 @@
 #define FREENECT_H
 
 #include <iostream>
+#include <pthread.h>
 
 #include <libfreenect/libfreenect.h>
 
@@ -41,14 +42,24 @@ class Freenect
 		static freenect_context *ctx;
 		static freenect_context *get_context();
 
+		static void video_cb(freenect_device *dev, void *rgb, uint32_t timestamp);
+		static void depth_cb(freenect_device *dev, void *depth, uint32_t timestamp);
+
 		class Device
 		{
 			public:
 				Device(int id);
+				~Device();
 
-				freenect_device *dev;
+				freenect_device *handle;
 				float tilt;
+
+				pthread_mutex_t mutex;
+				pthread_t thread;
+				bool thread_die;
 		};
+
+		static void *thread_func(void *vdev);
 
 		Device *device;
 };

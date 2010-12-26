@@ -11,7 +11,7 @@
 ;; with-freenect-device freenect-deviceid expression ...
 ;; Returns: result of last expression
 ;; Description:
-;; Allows you to work with the specified freenect devicen.
+;; Allows you to work with the specified freenect devices.
 ;; Example:
 ;; EndFunctionDoc
 
