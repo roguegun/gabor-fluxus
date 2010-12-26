@@ -1,0 +1,126 @@
+# SConstruct
+import os, sys
+
+Target = 'fluxus-freenect_ss'
+
+# fluxus version
+MajorVersion = "0"
+MinorVersion = "17"
+FluxusVersion = MajorVersion + MinorVersion
+
+STATIC = int(ARGUMENTS.get("STATIC", 0))
+
+# environment for building
+env = Environment()
+
+Source = ['src/FluxusFreenect.cpp',
+		'src/Freenect.cpp',
+		'src/VideoTexture.cpp']
+
+IncludePaths = ['/usr/local/include']
+
+# libs to check for
+LibList = [['racket3m', 'scheme.h'],
+		['GLEW', 'GL/glew.h'],
+		['freenect', 'libfreenect/libfreenect.h']]
+Libs = []
+LibPaths = ['/usr/local/lib']
+
+Frameworks = []
+FrameworkPaths = []
+
+# get PLT directories and collects install path
+DESTDIR = ARGUMENTS.get('DESTDIR', '')
+if len(DESTDIR)>0 and DESTDIR[0] != "/":
+                DESTDIR = "#" + DESTDIR
+
+if sys.platform == 'darwin':
+	file = os.popen('dirname "`which racket`"')
+	RacketBin = file.read()
+	file.close()
+	Prefix = ARGUMENTS.get('Prefix','/opt/local')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix', RacketBin[:-5])
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib")
+elif sys.platform == 'win32':
+	Prefix = ARGUMENTS.get('Prefix','c:/Program Files/Fluxus')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix','c:/Program Files/Racket')
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib")
+else:
+	Prefix = ARGUMENTS.get('Prefix','/usr/local')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix','/usr/local')
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include/racket")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib/racket")
+	
+file = os.popen("racket -em \"(begin (display (path->string (system-library-subpath)))(exit))\"")
+archpath = file.read()
+file.close()
+
+InstallLocation = DESTDIR + Prefix + '/lib/fluxus-' + FluxusVersion
+BinaryInstallLocation = InstallLocation + '/compiled/native/' + archpath
+
+# set up PLT lib, framework, include path
+IncludePaths += [RacketInclude]
+LibPaths += [RacketLib]
+
+env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
+env.Append(CCFLAGS = '-DMZ_PRECISE_GC')
+MZDYN = RacketLib + '/mzdyn3m.o'
+
+Source += [MZDYN]
+
+if env['PLATFORM'] == 'darwin':
+	Frameworks += ['Racket', 'OpenGL']
+	FrameworkPaths += [RacketLib]
+	IncludePaths += ['/opt/local/include']
+	LibPaths += ['/opt/local/lib']
+
+# configure environment
+CFLAGS = '-std=gnu99 -Wno-import'
+CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
+		'-pedantic -ggdb2 -O3 -Wno-variadic-macros'
+
+env.Append(CFLAGS = CFLAGS)
+env.MergeFlags(CCFLAGS)
+env.Append(CPPPATH = IncludePaths)
+env.Append(FRAMEWORKS = Frameworks)
+env.Append(FRAMEWORKPATH = FrameworkPaths)
+env.Append(LIBS = Libs)
+env.Append(LIBPATH = LibPaths)
+
+# check installed libraries
+
+if not GetOption('clean'):
+        conf = Configure(env)
+
+        # all libraries are required, and some of them require each other,
+        # hence the order is important, and autoadd=1
+        for (lib, headers) in LibList:
+                if not conf.CheckHeader(headers):
+                        print "ERROR: '%s' must be installed!" % (lib)
+                        Exit(1)
+
+        env = conf.Finish()
+
+		# remove racket, it will be added as a framework
+        if env['PLATFORM'] == 'darwin':
+                LibList = filter(lambda x: x[0] != 'racket3m', LibList)
+
+        # ... but we shouldn't forget to add them to LIBS manually
+        env.Append(LIBS = [rec[0] for rec in LibList])
+
+
+if STATIC:
+	if 'GLEW' in env['LIBS']:
+		env['LIBS'].remove('GLEW')
+		env['LIBS'].append((File('/opt/local/lib/libGLEW.a')))
+
+output = env.SharedLibrary(source = Source, 
+				  target = Target,
+				  FRAMEWORKS = Frameworks,
+				  SHLIBPREFIX = '')
+
+env.Install(BinaryInstallLocation, output)
+env.Alias('install', InstallLocation)
+
