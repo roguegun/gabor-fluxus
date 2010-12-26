@@ -26,16 +26,28 @@ class Exc : public std::exception {};
 class Freenect
 {
 	public:
-		Freenect() {};
+		Freenect(int id);
 
-		int get_num_devices();
+		static int get_num_devices();
 
 		class ExcFreenectInit : public Exc {};
+		class ExcFreenectOpenDevice : public Exc {};
 
 	private:
 		static freenect_context *ctx;
+		static freenect_context *get_context();
 
-		freenect_context *get_context();
+		class Device
+		{
+			public:
+				Device(int id);
+
+			private:
+				freenect_device *dev;
+
+		};
+
+		Device *device;
 };
 #endif
 
