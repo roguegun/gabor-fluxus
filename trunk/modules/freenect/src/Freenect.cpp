@@ -18,6 +18,11 @@
 
 freenect_context *Freenect::ctx = NULL;
 
+Freenect::Freenect(int id) :
+	device(new Device(id))
+{
+}
+
 freenect_context *Freenect::get_context()
 {
 	if (!ctx)
@@ -42,5 +47,12 @@ int Freenect::get_num_devices()
 	{
 		return 0;
 	}
+}
+
+Freenect::Device::Device(int id) :
+	dev(NULL)
+{
+	if (freenect_open_device(get_context(), &dev, id) < 0)
+		throw ExcFreenectOpenDevice();
 }
 
