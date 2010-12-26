@@ -8,6 +8,8 @@ MajorVersion = "0"
 MinorVersion = "17"
 FluxusVersion = MajorVersion + MinorVersion
 
+STATIC = int(ARGUMENTS.get("STATIC", 0))
+
 # environment for building
 env = Environment()
 
@@ -81,10 +83,10 @@ CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
 env.Append(CFLAGS = CFLAGS)
 env.MergeFlags(CCFLAGS)
 env.Append(CPPPATH = IncludePaths)
-env.Append(LIBS = Libs)
-env.Append(LIBPATH = LibPaths)
 env.Append(FRAMEWORKS = Frameworks)
 env.Append(FRAMEWORKPATH = FrameworkPaths)
+env.Append(LIBS = Libs)
+env.Append(LIBPATH = LibPaths)
 
 # check installed libraries
 
@@ -106,6 +108,12 @@ if not GetOption('clean'):
 
         # ... but we shouldn't forget to add them to LIBS manually
         env.Append(LIBS = [rec[0] for rec in LibList])
+
+
+if STATIC:
+	if 'GLEW' in env['LIBS']:
+		env['LIBS'].remove('GLEW')
+		env['LIBS'].append((File('/opt/local/lib/libGLEW.a')))
 
 output = env.SharedLibrary(source = Source, 
 				  target = Target,
