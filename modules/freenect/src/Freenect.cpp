@@ -23,6 +23,11 @@ Freenect::Freenect(int id) :
 {
 }
 
+Freenect::~Freenect()
+{
+	delete device;
+}
+
 freenect_context *Freenect::get_context()
 {
 	if (!ctx)
@@ -50,9 +55,21 @@ int Freenect::get_num_devices()
 }
 
 Freenect::Device::Device(int id) :
-	dev(NULL)
+	tilt(0)
 {
 	if (freenect_open_device(get_context(), &dev, id) < 0)
 		throw ExcFreenectOpenDevice();
+}
+
+void Freenect::set_tilt(float degrees)
+{
+	if (degrees < -31)
+		degrees = -31;
+	else
+	if (degrees > 31)
+		degrees = 31;
+
+	device->tilt = degrees;
+	freenect_set_tilt_degs(device->dev, degrees);
 }
 

@@ -19,11 +19,14 @@
 #include <string>
 #include <map>
 
+#include "SchemeHelper.h"
 #include "Freenect.h"
 
 using namespace std;
+using namespace SchemeHelper;
 
 static map <string, Freenect *> freenect_devices;
+static Freenect *grabbed_device = NULL;
 
 // StartFunctionDoc-en
 // freenect-get-num-devices
@@ -45,6 +48,13 @@ Scheme_Object *freenect_get_num_devices(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+// StartFunctionDoc-en
+// freenect-open
+// Returns: deviceid-symbol
+// Description:
+// Example:
+// EndFunctionDoc
+
 Scheme_Object *freenect_open(int argc, Scheme_Object **argv)
 {
 	Scheme_Object *ret = NULL;
@@ -53,14 +63,9 @@ Scheme_Object *freenect_open(int argc, Scheme_Object **argv)
 	MZ_GC_VAR_IN_REG(1, ret);
 	MZ_GC_REG();
 
-	if (!SCHEME_NUMBERP(argv[0]))
-	{
-		scheme_wrong_type("freenect-open", "number", 0, argc, argv);
-		MZ_GC_UNREG();
-		return scheme_void;
-	}
+	ArgCheck("freenect-open", "i", argc, argv);
 
-	int id = SCHEME_INT_VAL(argv[0]);
+	int id = IntFromScheme(argv[0]);
 	stringstream ss;
 	ss << id;
 	string strid = "freenect" + ss.str();
@@ -86,6 +91,73 @@ Scheme_Object *freenect_open(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+Scheme_Object *freenect_grab_device(int argc, Scheme_Object **argv)
+{
+	DECL_ARGV();
+	ArgCheck("freenect-grab-device", "S", argc, argv);
+
+	string strid(SCHEME_SYM_VAL(argv[0]));
+
+	map<string, Freenect *>::iterator i = freenect_devices.find(strid);
+	if (i != freenect_devices.end())
+	{
+		grabbed_device = i->second;
+	}
+	else
+	{
+		cerr << "freenect: cannot grab device " << strid << endl;
+		grabbed_device = NULL;
+	}
+
+	MZ_GC_UNREG();
+	return scheme_void;
+}
+
+Scheme_Object *freenect_ungrab_device(int argc, Scheme_Object **argv)
+{
+	grabbed_device = NULL;
+	return scheme_void;
+}
+
+Scheme_Object *freenect_set_tilt(int argc, Scheme_Object **argv)
+{
+	DECL_ARGV();
+	ArgCheck("freenect-set-tilt", "f", argc, argv);
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-set-tilt can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		grabbed_device->set_tilt(FloatFromScheme(argv[0]));
+
+	}
+	MZ_GC_UNREG();
+	return scheme_void;
+}
+
+Scheme_Object *freenect_get_tilt(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = scheme_void;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-get-tilt can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		ret = scheme_make_double(grabbed_device->get_tilt());
+	}
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
 Scheme_Object *scheme_reload(Scheme_Env *env)
 {
 	Scheme_Env *menv = NULL;
@@ -94,11 +166,14 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	MZ_GC_VAR_IN_REG(1, menv);
 	MZ_GC_REG();
 
-	// add all the modules from this extension
 	menv = scheme_primitive_module(scheme_intern_symbol("fluxus-freenect"), env);
 
 	scheme_add_global("freenect-get-num-devices", scheme_make_prim_w_arity(freenect_get_num_devices, "freenect-get-num-devices", 0, 0), menv);
 	scheme_add_global("freenect-open", scheme_make_prim_w_arity(freenect_open, "freenect-open", 1, 1), menv);
+	scheme_add_global("freenect-grab-device", scheme_make_prim_w_arity(freenect_grab_device, "freenect-grab-device", 1, 1), menv);
+	scheme_add_global("freenect-ungrab-device", scheme_make_prim_w_arity(freenect_ungrab_device, "freenect-ungrab-device", 0, 0), menv);
+	scheme_add_global("freenect-set-tilt", scheme_make_prim_w_arity(freenect_set_tilt, "freenect-set-tilt", 1, 1), menv);
+	scheme_add_global("freenect-get-tilt", scheme_make_prim_w_arity(freenect_get_tilt, "freenect-get-tilt", 0, 0), menv);
 
 	scheme_finish_primitive_module(menv);
 	MZ_GC_UNREG();

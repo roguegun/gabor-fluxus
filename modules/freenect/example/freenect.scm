@@ -1,8 +1,10 @@
-(require fluxus-017/fluxus-freenect)
+(require fluxus-017/freenect)
 
 (printf "There are ~a Kinects connected~n" (freenect-get-num-devices))
 
 (define kinect (freenect-open 0))
 
-(displayln kinect)
+(with-freenect-device kinect
+    (displayln kinect)
+    (freenect-set-tilt 0))
 
