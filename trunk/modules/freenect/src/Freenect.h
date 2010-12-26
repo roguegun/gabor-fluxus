@@ -27,6 +27,10 @@ class Freenect
 {
 	public:
 		Freenect(int id);
+		~Freenect();
+
+		void set_tilt(float degrees);
+		float get_tilt() { return device->tilt; }
 
 		static int get_num_devices();
 
@@ -42,9 +46,8 @@ class Freenect
 			public:
 				Device(int id);
 
-			private:
 				freenect_device *dev;
-
+				float tilt;
 		};
 
 		Device *device;

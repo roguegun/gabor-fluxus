@@ -2,6 +2,7 @@
 import os, sys
 
 Target = 'fluxus-freenect_ss'
+TargetSS = 'freenect.ss'
 
 # fluxus version
 MajorVersion = "0"
@@ -15,7 +16,8 @@ env = Environment()
 
 Source = ['src/FluxusFreenect.cpp',
 		'src/Freenect.cpp',
-		'src/VideoTexture.cpp']
+		'src/VideoTexture.cpp',
+		'src/SchemeHelper.cpp']
 
 IncludePaths = ['/usr/local/include']
 
@@ -122,5 +124,6 @@ output = env.SharedLibrary(source = Source,
 				  SHLIBPREFIX = '')
 
 env.Install(BinaryInstallLocation, output)
+env.Install(InstallLocation, TargetSS)
 env.Alias('install', InstallLocation)
 
