@@ -6,5 +6,5 @@
 
 (with-freenect-device kinect
     (displayln kinect)
-    (freenect-set-tilt 0))
-
+    (freenect-set-tilt 0)
+    (displayln (freenect-get-tilt)))
