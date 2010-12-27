@@ -158,6 +158,127 @@ Scheme_Object *freenect_get_tilt(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+Scheme_Object *freenect_get_rgb_texture(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = scheme_void;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-get-rgb-texture can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		ret = scheme_make_integer_value(grabbed_device->get_rgb_texture_id());
+	}
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
+Scheme_Object *freenect_get_depth_texture(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = scheme_void;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-get-depth-texture can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		ret = scheme_make_integer_value(grabbed_device->get_depth_texture_id());
+	}
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
+Scheme_Object *freenect_update(int argc, Scheme_Object **argv)
+{
+	DECL_ARGV();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-update can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		grabbed_device->update();
+	}
+
+	MZ_GC_UNREG();
+	return scheme_void;
+}
+
+
+static Scheme_Object *scheme_vector(float v0, float v1, float v2)
+{
+	Scheme_Object *ret = NULL;
+	Scheme_Object *tmp = NULL;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, ret);
+	MZ_GC_VAR_IN_REG(1, tmp);
+	MZ_GC_REG();
+	ret = scheme_make_vector(3, scheme_void);
+	SCHEME_VEC_ELS(ret)[0] = scheme_make_double(v0);
+	SCHEME_VEC_ELS(ret)[1] = scheme_make_double(v1);
+	SCHEME_VEC_ELS(ret)[2] = scheme_make_double(v2);
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
+// StartFunctionDoc-en
+// freenect-tcoords
+// Returns: list-of-texture-coordinates
+// Description:
+// Returns the texture coordinates of the video textures. This is necessary,
+// because video images are rectangular non-power-of-two textures, while
+// fluxus uses GL_TEXTURE_2D power-of-two textures.
+// Example:
+// EndFunctionDoc
+
+Scheme_Object *freenect_tcoords(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = NULL;
+	Scheme_Object **coord_list = NULL;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, coord_list);
+	MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-tcoords can only be used while a freenect device is grabbed." << endl;
+		ret = scheme_void;
+	}
+	else
+	{
+		coord_list = (Scheme_Object **)scheme_malloc(4 *
+				sizeof(Scheme_Object *));
+
+		float *coords  = grabbed_device->get_tcoords();
+
+		coord_list[0] = scheme_vector(coords[0], coords[4], coords[2]);
+		coord_list[1] = scheme_vector(coords[3], coords[4], coords[5]);
+		coord_list[2] = scheme_vector(coords[3], coords[1], coords[5]);
+		coord_list[3] = scheme_vector(coords[0], coords[1], coords[2]);
+
+		ret = scheme_build_list(4, coord_list);
+	}
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
+
 Scheme_Object *scheme_reload(Scheme_Env *env)
 {
 	Scheme_Env *menv = NULL;
@@ -174,6 +295,10 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	scheme_add_global("freenect-ungrab-device", scheme_make_prim_w_arity(freenect_ungrab_device, "freenect-ungrab-device", 0, 0), menv);
 	scheme_add_global("freenect-set-tilt", scheme_make_prim_w_arity(freenect_set_tilt, "freenect-set-tilt", 1, 1), menv);
 	scheme_add_global("freenect-get-tilt", scheme_make_prim_w_arity(freenect_get_tilt, "freenect-get-tilt", 0, 0), menv);
+	scheme_add_global("freenect-get-rgb-texture", scheme_make_prim_w_arity(freenect_get_rgb_texture, "freenect-get-rgb-texture", 0, 0), menv);
+	scheme_add_global("freenect-get-depth-texture", scheme_make_prim_w_arity(freenect_get_depth_texture, "freenect-get-depth-texture", 0, 0), menv);
+	scheme_add_global("freenect-update", scheme_make_prim_w_arity(freenect_update, "freenect-update", 0, 0), menv);
+	scheme_add_global("freenect-tcoords", scheme_make_prim_w_arity(freenect_tcoords, "freenect-tcoords", 0, 0), menv);
 
 	scheme_finish_primitive_module(menv);
 	MZ_GC_UNREG();

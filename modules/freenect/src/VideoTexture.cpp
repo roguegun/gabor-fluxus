@@ -51,7 +51,7 @@ static int check_gl_errors(const char *call)
 
 #endif
 
-VideoTexture::VideoTexture(int w, int h, int f) :
+VideoTexture::VideoTexture(int w, int h, int f, int t /* = GL_UNSIGNED_BYTE */) :
 	texture_id(0)
 {
 	if (glewInit() != GLEW_OK)
@@ -64,6 +64,7 @@ VideoTexture::VideoTexture(int w, int h, int f) :
 	width = w;
 	height = h;
 	format = f;
+	type = t;
 	gen_texture();
 }
 
@@ -86,7 +87,7 @@ void VideoTexture::gen_texture()
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, tex_width, tex_height, 0,
-			format, GL_UNSIGNED_BYTE, NULL);
+			format, type, NULL);
 	CHECK_GL_ERRORS("glTexImage2d");
 
 	if (mipmapping_enabled)
@@ -103,14 +104,14 @@ void VideoTexture::gen_texture()
 	glDisable(GL_TEXTURE_2D);
 }
 
-void VideoTexture::upload(unsigned char *pixels)
+void VideoTexture::upload(void *pixels)
 {
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-			format, GL_UNSIGNED_BYTE, pixels);
-	CHECK_GL_ERRORS("update: glTexImage2d");
+			format, type, pixels);
+	CHECK_GL_ERRORS("update: glTexSubImage2d");
 
 	if (mipmapping_enabled)
 	{

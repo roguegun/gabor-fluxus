@@ -22,6 +22,8 @@
 
 #include <libfreenect/libfreenect.h>
 
+#include "VideoTexture.h"
+
 class Exc : public std::exception {};
 
 class Freenect
@@ -37,6 +39,11 @@ class Freenect
 
 		class ExcFreenectInit : public Exc {};
 		class ExcFreenectOpenDevice : public Exc {};
+
+		void update();
+		unsigned get_rgb_texture_id() { return device->rgb_txt->get_texture_id(); }
+		unsigned get_depth_texture_id() { return device->depth_txt->get_texture_id(); }
+		float *get_tcoords() { return device->rgb_txt->get_tcoords(); }
 
 	private:
 		static freenect_context *ctx;
@@ -57,6 +64,16 @@ class Freenect
 				pthread_mutex_t mutex;
 				pthread_t thread;
 				bool thread_die;
+
+				uint8_t *rgb_pixels;
+				VideoTexture *rgb_txt;
+				bool new_rgb_frame;
+
+				uint16_t *depth_pixels;
+				VideoTexture *depth_txt;
+				bool new_depth_frame;
+
+				void update();
 		};
 
 		static void *thread_func(void *vdev);
