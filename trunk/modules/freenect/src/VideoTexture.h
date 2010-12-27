@@ -19,10 +19,12 @@
 
 #include <string>
 
+#include "OpenGL.h"
+
 class VideoTexture
 {
 	public:
-			VideoTexture(int w, int h, int f);
+			VideoTexture(int w, int h, int f, int t = GL_UNSIGNED_BYTE);
 			virtual ~VideoTexture();
 
 			float* get_tcoords();
@@ -42,15 +44,16 @@ class VideoTexture
 				return height;
 			}
 
+			void upload(void *pixels);
+
 	protected:
 			void gen_texture();
-
-			void upload(unsigned char *pixels);
 
 			bool mipmapping_enabled;
 			int width, height; // pixel buffer resolution of image
 			int tex_width, tex_height; // texture resolution (power of 2)
 			int format; // texture format, GL_RGB or GL_LUMINANCE
+			int type; // data type of the pixel data
 
 			unsigned texture_id;
 };
