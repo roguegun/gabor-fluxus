@@ -8,6 +8,9 @@
 
 (define kinect (freenect-open 0))
 
+(hint-ignore-depth)
+(hint-unlit)
+
 (with-freenect-device kinect
     (displayln kinect)
     (freenect-set-tilt 0)
@@ -18,14 +21,15 @@
           [tcoords (freenect-tcoords)])
         (with-primitive p-rgb
             (texture t-rgb)
-            (translate #(-.51 0 0))
+            ;(translate #(-.51 0 0))
             (pdata-index-map!
                 (lambda (i t)
                     (list-ref tcoords (remainder i 4)))
                 "t"))
         (with-primitive p-depth
             (texture t-depth)
-            (translate #(.51 0 0))
+            (opacity .5)
+            ;(translate #(.51 0 0))
             (pdata-index-map!
                 (lambda (i t)
                     (list-ref tcoords (remainder i 4)))

@@ -14,6 +14,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+#include <math.h>
 #include <string.h>
 
 #include "OpenGL.h"
@@ -21,9 +22,68 @@
 
 freenect_context *Freenect::ctx = NULL;
 
+bool Freenect::luts = false;
+unsigned *Freenect::rgb2depth_lut = NULL;
+float *Freenect::distance_lut = NULL;
+
 Freenect::Freenect(int id) :
 	device(new Device(id))
 {
+	if (!luts)
+	{
+		// calculating lookup table for rgb and depth image calibration
+		rgb2depth_lut = new unsigned[640 * 480];
+		// relative transform of the 2 images
+		const float m[4][4] =
+			{{0.942040, -0.004628, 0.000000, 0.000005},
+			 {-0.005672, 0.939875, 0.000000, 0.000003},
+			 {0.000000, 0.000000, 0.000000, 0.000000},
+			 {23.953022, 31.486654, 0.000000, 1.000000}};
+		unsigned *r2d_lut = rgb2depth_lut;
+
+		Vector uv, t;
+		for (int y = 0; y < 480; y++)
+		{
+			for (int x = 0; x < 640; x++)
+			{
+				uv = Vector(x, y);
+				//uv.x = x; uv.y = y; uv.z = 0; uv.w = 1;
+
+				t.x = uv.x * m[0][0] + uv.y * m[1][0] + uv.z * m[2][0] + uv.w * m[3][0];
+				t.y = uv.x * m[0][1] + uv.y * m[1][1] + uv.z * m[2][1] + uv.w * m[3][1];
+				t.z = uv.x * m[0][2] + uv.y * m[1][2] + uv.z * m[2][2] + uv.w * m[3][2];
+				t.w = uv.x * m[0][3] + uv.y * m[1][3] + uv.z * m[2][3] + uv.w * m[3][3];
+
+				t.x /= t.w;
+				t.y /= t.w;
+
+				if (t.x < 0)
+					t.x = 0;
+				else if (t.x > 639)
+					t.x = 639;
+				if (t.y < 0)
+					t.y = 0;
+				else if (t.y > 479)
+					t.y = 479;
+
+				*r2d_lut++ = (((int)(t.y)) * 640 + (int)t.x) * 3;
+			}
+		}
+
+		// depth to distance
+		distance_lut = new float [2048];
+		// equation from http://openkinect.org/wiki/Imaging_Information
+		const float k1 = 0.1236;
+		const float k2 = 2842.5;
+		const float k3 = 1.1863;
+		const float k4 = 0.0370;
+		for (unsigned i = 0; i < 2048; i++)
+		{
+			distance_lut[i] = k1 * tanf(i / k2 + k3) - k4;
+		}
+
+		luts = true;
+	}
 }
 
 Freenect::~Freenect()
@@ -70,6 +130,9 @@ Freenect::Device::Device(int id) :
 	depth_pixels = new uint16_t[640 * 480];
 	depth_txt = new VideoTexture(640, 480, GL_LUMINANCE, GL_UNSIGNED_SHORT);
 
+	rgb_calibrated_pixels = new uint8_t[640 * 480 * 3];
+	rgb_calibrated_txt = new VideoTexture(640, 480, GL_RGB);
+
 	pthread_mutex_init(&mutex, NULL);
 
 	freenect_set_user(handle, this);
@@ -92,6 +155,8 @@ Freenect::Device::~Device()
 	delete [] rgb_pixels;
 	delete depth_txt;
 	delete [] depth_pixels;
+	delete rgb_calibrated_txt;
+	delete [] rgb_calibrated_pixels;
 }
 
 void *Freenect::thread_func(void *vdev)
@@ -143,6 +208,7 @@ void Freenect::Device::update()
 	{
 		rgb_txt->upload(rgb_pixels);
 		new_rgb_frame = false;
+		update_rgb_calibrated();
 	}
 	if (new_depth_frame)
 	{
@@ -150,6 +216,19 @@ void Freenect::Device::update()
 		new_depth_frame = false;
 	}
 	pthread_mutex_unlock(&mutex);
+
+}
+
+void Freenect::Device::update_rgb_calibrated()
+{
+	for (unsigned i = 0, j = 0; i < FREENECT_FRAME_PIX; i++, j += 3)
+	{
+		unsigned off = rgb2depth_lut[i];
+		rgb_calibrated_pixels[j] = rgb_pixels[off];
+		rgb_calibrated_pixels[j + 1] = rgb_pixels[off + 1];
+		rgb_calibrated_pixels[j + 2] = rgb_pixels[off + 2];
+	}
+	rgb_calibrated_txt->upload(rgb_calibrated_pixels);
 }
 
 void Freenect::update()
@@ -167,5 +246,23 @@ void Freenect::set_tilt(float degrees)
 
 	device->tilt = degrees;
 	freenect_set_tilt_degs(device->handle, degrees);
+}
+
+Vector Freenect::worldcoord_at(int x, int y)
+{
+	// http://graphics.stanford.edu/~mdfisher/Kinect.html
+	float depth = distance_lut[device->depth_pixels[y * 640 + x]];
+
+	static const double fx_d = 1.0 / 5.9421434211923247e+02;
+    static const double fy_d = 1.0 / 5.9104053696870778e+02;
+    static const double cx_d = 3.3930780975300314e+02;
+    static const double cy_d = 2.4273913761751615e+02;
+
+    Vector result;
+    result.x = float((x - cx_d) * depth * fx_d);
+    result.y = float((y - cy_d) * depth * fy_d);
+    result.z = float(depth);
+
+	return result;
 }
 

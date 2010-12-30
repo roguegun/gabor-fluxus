@@ -200,6 +200,27 @@ Scheme_Object *freenect_get_depth_texture(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+Scheme_Object *freenect_get_rgb_calibrated_texture(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = scheme_void;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-get-rgb-calibrated-texture can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		ret = scheme_make_integer_value(grabbed_device->get_rgb_calibrated_texture_id());
+	}
+
+	MZ_GC_UNREG();
+	return ret;
+}
+
 Scheme_Object *freenect_update(int argc, Scheme_Object **argv)
 {
 	DECL_ARGV();
@@ -278,6 +299,29 @@ Scheme_Object *freenect_tcoords(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+Scheme_Object *freenect_worldcoord_at(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = NULL;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	ArgCheck("freenect-worldcoord-at", "ii", argc, argv);
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-worldcoord-at can only be used while a freenect device is grabbed." << endl;
+		ret = scheme_void;
+	}
+	else
+	{
+		Vector v = grabbed_device->worldcoord_at(IntFromScheme(argv[0]), IntFromScheme(argv[1]));
+		ret = scheme_vector(v.x, v.y, v.z);
+	}
+	MZ_GC_UNREG();
+	return ret;
+}
 
 Scheme_Object *scheme_reload(Scheme_Env *env)
 {
@@ -297,8 +341,10 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	scheme_add_global("freenect-get-tilt", scheme_make_prim_w_arity(freenect_get_tilt, "freenect-get-tilt", 0, 0), menv);
 	scheme_add_global("freenect-get-rgb-texture", scheme_make_prim_w_arity(freenect_get_rgb_texture, "freenect-get-rgb-texture", 0, 0), menv);
 	scheme_add_global("freenect-get-depth-texture", scheme_make_prim_w_arity(freenect_get_depth_texture, "freenect-get-depth-texture", 0, 0), menv);
+	scheme_add_global("freenect-get-rgb-calibrated-texture", scheme_make_prim_w_arity(freenect_get_rgb_calibrated_texture, "freenect-get-rgb-calbirated-texture", 0, 0), menv);
 	scheme_add_global("freenect-update", scheme_make_prim_w_arity(freenect_update, "freenect-update", 0, 0), menv);
 	scheme_add_global("freenect-tcoords", scheme_make_prim_w_arity(freenect_tcoords, "freenect-tcoords", 0, 0), menv);
+	scheme_add_global("freenect-worldcoord-at", scheme_make_prim_w_arity(freenect_worldcoord_at, "freenect-worldcoord-at", 2, 2), menv);
 
 	scheme_finish_primitive_module(menv);
 	MZ_GC_UNREG();
