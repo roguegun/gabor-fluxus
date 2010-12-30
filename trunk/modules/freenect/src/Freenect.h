@@ -26,6 +26,21 @@
 
 class Exc : public std::exception {};
 
+class Vector
+{
+	public:
+		Vector()
+		{
+			x = y = z = 0; w = 1;
+		}
+		Vector(float _x, float _y, float _z = 0., float _w = 1.0)
+		{
+			x = _x; y = _y; z = _z; w = _w;
+		}
+
+		float x, y, z, w;
+};
+
 class Freenect
 {
 	public:
@@ -43,7 +58,10 @@ class Freenect
 		void update();
 		unsigned get_rgb_texture_id() { return device->rgb_txt->get_texture_id(); }
 		unsigned get_depth_texture_id() { return device->depth_txt->get_texture_id(); }
+		unsigned get_rgb_calibrated_texture_id() { return device->rgb_calibrated_txt->get_texture_id(); }
 		float *get_tcoords() { return device->rgb_txt->get_tcoords(); }
+
+		Vector worldcoord_at(int x, int y);
 
 	private:
 		static freenect_context *ctx;
@@ -73,10 +91,19 @@ class Freenect
 				VideoTexture *depth_txt;
 				bool new_depth_frame;
 
+				uint8_t *rgb_calibrated_pixels;
+				VideoTexture *rgb_calibrated_txt;
+
 				void update();
+
+			private:
+				void update_rgb_calibrated();
 		};
 
 		static void *thread_func(void *vdev);
+		static bool luts;
+		static unsigned *rgb2depth_lut; // lookup table for rgb transform
+		static float *distance_lut; // lookup table for distance from depth
 
 		Device *device;
 };

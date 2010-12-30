@@ -60,6 +60,7 @@ VideoTexture::VideoTexture(int w, int h, int f, int t /* = GL_UNSIGNED_BYTE */) 
 	}
 
 	mipmapping_enabled = (glGenerateMipmapEXT != NULL);
+	npot_enabled = glewIsSupported("GL_ARB_texture_non_power_of_two");
 
 	width = w;
 	height = h;
@@ -78,8 +79,17 @@ VideoTexture::~VideoTexture()
 
 void VideoTexture::gen_texture()
 {
-	tex_width = 1 << (unsigned)ceil(log2(width));
-	tex_height = 1 << (unsigned)ceil(log2(height));
+	if (npot_enabled)
+	{
+		tex_width = width;
+		tex_height = height;
+	}
+	else
+	{
+		tex_width = 1 << (unsigned)ceil(log2(width));
+		tex_height = 1 << (unsigned)ceil(log2(height));
+	}
+
 
 	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, &texture_id);
@@ -134,8 +144,8 @@ float *VideoTexture::get_tcoords()
 	t[0] = 0.0;
 	t[1] = 0.0;
 	t[2] = 0.0;
-	t[3] = (float)(width - 1)/(float)tex_width;
-	t[4] = (float)(height - 1)/(float)tex_height;
+	t[3] = npot_enabled ? 1.0 : (float)(width - 1)/(float)tex_width;
+	t[4] = npot_enabled ? 1.0 : (float)(height - 1)/(float)tex_height;
 	t[5] = 0.0;
 
 	return t;

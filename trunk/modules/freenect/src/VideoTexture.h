@@ -50,6 +50,7 @@ class VideoTexture
 			void gen_texture();
 
 			bool mipmapping_enabled;
+			bool npot_enabled; // support for non power of two textures
 			int width, height; // pixel buffer resolution of image
 			int tex_width, tex_height; // texture resolution (power of 2)
 			int format; // texture format, GL_RGB or GL_LUMINANCE
