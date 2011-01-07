@@ -22,19 +22,19 @@
         nums)))
 
 
-#|
+;#|
 (define font-chars (bwimg->list "font8.c"))
 (define font-width 8)
 (define font-height 8)
-(define output "font8x8.png")
-|#
+(define output "font8x8s.png")
+;|#
 
-;#|
+#|
 (define font-chars (bwimg->list "font14.c"))
 (define font-width 8)
 (define font-height 14)
 (define output "font8x14.png")
-;|#
+|#
 
 (define (get-char n)
   (let* ([char-size (* font-width font-height 1/8)]
@@ -45,6 +45,23 @@
                   1
                 0)))))
 
+;; 256x1 font texture
+(define p (build-pixels (* font-width 256) font-height))
+
+(with-primitive p
+    (scale (vector (* (/ font-width font-height) 256) 1 1))
+    (let ([scanline (* font-width 256)])
+        (for ([i (in-range 256)])
+            (let* ([c (get-char i)]
+                   [offset (* i font-width)])
+               (for* ([x (in-range font-width)]
+                      [y (in-range font-height)])
+                    (pdata-set! "c" (+ offset (* y scanline) x)
+                                (list-ref (list-ref c (- font-height 1 y)) x))))))
+    (pixels-upload))
+
+#|
+;; 16x16 font texture
 (define p (build-pixels (* font-width 16) (* font-height 16)))
 
 (with-primitive p
@@ -61,6 +78,7 @@
                     (pdata-set! "c" (+ offset (* y scanline) x)
                                 (list-ref (list-ref c (- font-height 1 y)) x))))))
     (pixels-upload))
+|#
 
 (with-primitive p
     (save-primitive output))
