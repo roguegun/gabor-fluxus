@@ -45,6 +45,37 @@
                   1
                 0)))))
 
+;; chars sorted by brightness
+;(define bfont-chars (map get-char (build-list 256 values)))
+
+; returns the number of bits set in character data
+(define (char-data-bits-set c)
+  (foldl + 0
+         (map (lambda (l) (apply + l))
+              c)))
+
+(define sbfont-chars (sort 
+                       (map get-char (build-list 256 values))
+                       (lambda (a b)
+                             (< (char-data-bits-set a)
+                                (char-data-bits-set b)))))
+
+;; 256x1 font texture sorted by brightness
+(define p (build-pixels (* font-width 256) font-height))
+
+(with-primitive p
+    (scale (vector (* (/ font-width font-height) 256) 1 1))
+    (let ([scanline (* font-width 256)])
+        (for ([i (in-range 256)])
+            (let* ([c (list-ref sbfont-chars i)]
+                   [offset (* i font-width)])
+               (for* ([x (in-range font-width)]
+                      [y (in-range font-height)])
+                    (pdata-set! "c" (+ offset (* y scanline) x)
+                                (list-ref (list-ref c (- font-height 1 y)) x))))))
+    (pixels-upload))
+
+#|
 ;; 256x1 font texture
 (define p (build-pixels (* font-width 256) font-height))
 
@@ -59,6 +90,8 @@
                     (pdata-set! "c" (+ offset (* y scanline) x)
                                 (list-ref (list-ref c (- font-height 1 y)) x))))))
     (pixels-upload))
+|#
+
 
 #|
 ;; 16x16 font texture
