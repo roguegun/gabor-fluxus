@@ -174,7 +174,7 @@ env.Append(LIBPATH = LIBPATH)
 if not GetOption('clean'):
 	conf = Configure(env)
 	for (lib, headers) in LIBLIST:
-		if not conf.CheckLibWithHeader(lib, headers, 'c++'):
+		if not conf.CheckLibWithHeader(lib, headers, 'c++', autoadd=0):
 			print "error: '%s' must be installed!" % lib
 			Exit(1)
 		LIBS += [lib]

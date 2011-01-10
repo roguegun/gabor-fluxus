@@ -1,6 +1,6 @@
 
-TARGET = 'pixelize'
-SOURCES = ['Pixelize.cpp']
+TARGET = 'dither'
+SOURCES = ['Dither.cpp']
 LIBS = []
 FRAMEWORKS = []
 ECCFLAGS = ''

@@ -10,9 +10,9 @@ AddOption('--bundle', action='store_true', help='Build OSX bundle instead of .dy
 platform = env['PLATFORM']
 
 if platform == 'darwin':
-	DEFAULT_INSTALLPATH = '/opt/local/share/fluxus-016/plugins'
+	DEFAULT_INSTALLPATH = '/opt/local/share/fluxus-017/plugins'
 else:
-	DEFAULT_INSTALLPATH = '/usr/share/fluxus-016/plugins'
+	DEFAULT_INSTALLPATH = '/usr/share/fluxus-017/plugins'
 INSTALLPATH = ARGUMENTS.get('InstallDir', DEFAULT_INSTALLPATH)
 PROFILE = int(ARGUMENTS.get('profile', 0))
 
@@ -22,7 +22,7 @@ TARGET = '#' + TARGET
 SOURCES = ['#' + s for s in SOURCES]
 STATIC = 0
 
-LIBSOURCES = ['FFGLPlugin.cpp']
+LIBSOURCES = ['FFGLPlugin.cpp', 'Surface.cpp', 'DebugGL.cpp', 'GLSLProg.cpp']
 
 LIBINCLUDES = ['./']	# add current directory to the include path
 LIBPATH = []
@@ -69,7 +69,6 @@ if STATIC:
 		if platform == 'darwin':
 			LIBS.append((File('/opt/local/lib/libGLEW.a')))
 		# TODO static GLEW lib on linux
-
 
 env.Append(CFLAGS = CFLAGS)
 env.Append(CCFLAGS = CCFLAGS)

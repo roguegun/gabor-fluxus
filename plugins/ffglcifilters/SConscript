@@ -8,7 +8,7 @@ INSTALLPATH = ARGUMENTS.get('InstallDir', '/opt/local/share/fluxus-017/plugins')
 PROFILE = int(ARGUMENTS.get('profile', 0))
 
 SOURCES = ['CITemplate.cpp', 'CIObjC.m', 'Surface.cpp']
-STATIC = 0
+STATIC = int(ARGUMENTS.get('STATIC', '0'))
 
 if 'objc' not in LIBS:
 	LIBS += ['objc']
