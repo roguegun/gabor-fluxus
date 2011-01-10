@@ -1,12 +1,12 @@
 (clear)
 
 (define dither-vert
-  "
-  void main(void)
-  {
-      gl_Position = ftransform();
-      gl_TexCoord[0] = gl_MultiTexCoord0;
-  }")
+"
+void main(void)
+{
+  gl_Position = ftransform();
+  gl_TexCoord[0] = gl_MultiTexCoord0;
+}")
 
 (define dither-frag
 "
@@ -22,10 +22,10 @@ void main(void)
     
     #undef D
     #define D 63.0
-    mat4 dither0 = mat4(1., 9., 3., 11.,
-                    13., 5., 15., 7.,
-                    4., 12.,  2., 10.,
-                    16., 8., 14., 6.);
+    mat4 dither0 = mat4(1, 9, 3, 11,
+                    13, 5, 15, 7,
+                    4, 12,  2, 10,
+                    16, 8, 14, 6);
     mat4 dither = dither0 / D;
 /*    
    mat4 dither = mat4(...) / D
