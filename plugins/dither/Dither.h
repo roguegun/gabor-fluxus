@@ -20,7 +20,7 @@
 #define COLORIZE_H
 
 #include "FFGLPlugin.h"
-#define DEBUG_GL
+//#define DEBUG_GL
 #include "DebugGL.h"
 #include "GLSLProg.h"
 
@@ -34,7 +34,7 @@ class Dither : public FFGLPlugin
 		unsigned process_opengl(ProcessOpenGLStruct *pgl);
 
 	private:
-		GLSLProg shader;
+		static GLSLProg *shader;
 		static const char *vertex_shader;
 		static const char *fragment_shader;
 };

@@ -20,7 +20,7 @@
 
 #include "GLSLProg.h"
 
-GLSLProg::GLSLProg(const char *vertex_src /* = NULL */, const char *fragment_src /* = NULL */) :
+GLSLProg::GLSLProg(const char *vertex_src, const char *fragment_src /* = NULL */) :
 	vertex_handle(0),
 	fragment_handle(0),
 	program_handle(0)

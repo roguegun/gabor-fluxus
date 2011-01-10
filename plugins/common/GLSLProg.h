@@ -23,13 +23,12 @@
 #include <map>
 
 #include "OpenGL.h"
-#define DEBUG_GL
 #include "DebugGL.h"
 
 class GLSLProg
 {
 	public:
-		GLSLProg(const char *vertex_src = NULL, const char *fragment_src = NULL);
+		GLSLProg(const char *vertex_src, const char *fragment_src = NULL);
 		~GLSLProg();
 
 		void bind();
