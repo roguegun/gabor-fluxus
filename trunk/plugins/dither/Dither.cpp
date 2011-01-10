@@ -41,7 +41,7 @@ void main(void) \
     float c = dot(texture2D(color, gl_TexCoord[0].xy), grey); \
     vec2 xy = mod(gl_TexCoord[0].xy * vec2(width, height), 4.); \
     \
-    float D = 63.0; \
+    float D = 31.0; \
     mat4 dither0 = mat4(1, 9, 3, 11, \
                     13, 5, 15, 7, \
                     4, 12,  2, 10, \
@@ -53,22 +53,18 @@ void main(void) \
     (0) : fatal error C9999: Non scalar or vector type in ConvertNamedConstantsExpr() \
     Cg compiler terminated due to fatal error \
 */ \
-	gl_FragColor = vec4(1, 0, 0, 1); \
-/* \
     if (c <= dither[int(xy.x)][int(xy.y)]) \
         gl_FragColor = vec4(0, 0, 0, 1); \
     else \
         gl_FragColor = vec4(1); \
-*/ \
 } \
 ";
 
-//GLSLProg Dither::shader;
+GLSLProg *Dither::shader;
 
 Dither::Dither(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 {
 	/* this is called when the plugin is instantiated */
-	shader = GLSLProg(vertex_shader, fragment_shader);
 }
 
 Dither::Dither()
@@ -83,6 +79,8 @@ Dither::Dither()
 	set_version(1.0);
 	set_minimum_input_frames(1);
 	set_maximum_input_frames(1);
+
+	shader = new GLSLProg(vertex_shader, fragment_shader);
 }
 
 Dither::~Dither()
@@ -104,12 +102,12 @@ unsigned Dither::process_opengl(ProcessOpenGLStruct *pgl)
 	float s = texture->Width / (float)texture->HardwareWidth;
 	float t = texture->Height / (float)texture->HardwareHeight;
 
-	shader.bind();
+	shader->bind();
 	CHECK_GL_ERRORS("bind");
 
-	shader.uniform("width", (float)texture->HardwareWidth);
+	shader->uniform("width", (float)texture->HardwareWidth);
 	CHECK_GL_ERRORS("uniform width");
-	shader.uniform("height", (float)texture->HardwareHeight);
+	shader->uniform("height", (float)texture->HardwareHeight);
 	CHECK_GL_ERRORS("uniform height");
 
 	glBegin(GL_QUADS);
@@ -123,7 +121,7 @@ unsigned Dither::process_opengl(ProcessOpenGLStruct *pgl)
 	glVertex2f(1, -1);
 	glEnd();
 
-	shader.unbind();
+	shader->unbind();
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return FF_SUCCESS;
