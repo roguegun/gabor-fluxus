@@ -37,6 +37,12 @@ class Dither : public FFGLPlugin
 		static GLSLProg *shader;
 		static const char *vertex_shader;
 		static const char *fragment_shader;
+
+		enum {
+			PARAM_THR = 0,
+			PARAM_PIXEL_WIDTH,
+			PARAM_PIXEL_HEIGHT
+		};
 };
 
 #endif
