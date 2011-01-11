@@ -17,6 +17,8 @@
  */
 
 #include <iostream>
+#include <math.h>
+
 #include "OpenGL.h"
 #include "Dither.h"
 
@@ -31,28 +33,25 @@ void main(void) \
 ";
 
 const char *Dither::fragment_shader = "\
-uniform sampler2D color; \
+uniform sampler2D txt; \
 uniform float width; \
 uniform float height; \
+uniform float pwidth; \
+uniform float pheight; \
+uniform float thr; \
 \
 void main(void) \
 { \
     const vec4 grey = vec4(.3, .59, .11, .0); \
-    float c = dot(texture2D(color, gl_TexCoord[0].xy), grey); \
-    vec2 xy = mod(gl_TexCoord[0].xy * vec2(width, height), 4.); \
+    vec2 step = vec2(pwidth, pheight) / vec2(width, height); \
+    vec2 uv = step * floor(gl_TexCoord[0].xy / step); \
+    float c = dot(texture2D(txt, uv), grey); \
+    vec2 xy = mod(uv * vec2(width, height), 4.); \
     \
-    float D = 31.0; \
-    mat4 dither0 = mat4(1, 9, 3, 11, \
+    mat4 dither = mat4(1, 9, 3, 11, \
                     13, 5, 15, 7, \
                     4, 12,  2, 10, \
-                    16, 8, 14, 6); \
-    mat4 dither = dither0 / D; \
-/*   \
-    mat4 dither = mat4(...) / D \
-    on osx results in: \
-    (0) : fatal error C9999: Non scalar or vector type in ConvertNamedConstantsExpr() \
-    Cg compiler terminated due to fatal error \
-*/ \
+                    16, 8, 14, 6) / thr; \
     if (c <= dither[int(xy.x)][int(xy.y)]) \
         gl_FragColor = vec4(0, 0, 0, 1); \
     else \
@@ -60,11 +59,13 @@ void main(void) \
 } \
 ";
 
-GLSLProg *Dither::shader;
+GLSLProg *Dither::shader = NULL;
 
 Dither::Dither(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 {
 	/* this is called when the plugin is instantiated */
+	if (shader == NULL)
+		shader = new GLSLProg(vertex_shader, fragment_shader);
 }
 
 Dither::Dither()
@@ -80,7 +81,9 @@ Dither::Dither()
 	set_minimum_input_frames(1);
 	set_maximum_input_frames(1);
 
-	shader = new GLSLProg(vertex_shader, fragment_shader);
+	add_parameter("thr", 31.0, 0.0, 256.0, FF_TYPE_STANDARD);
+	add_parameter("pixel-x", 0, 0, 1, FF_TYPE_XPOS);
+	add_parameter("pixel-y", 0, 0, 1, FF_TYPE_YPOS);
 }
 
 Dither::~Dither()
@@ -96,6 +99,10 @@ unsigned Dither::process_opengl(ProcessOpenGLStruct *pgl)
 	FFGLTextureStruct *texture = pgl->inputTextures[0];
 
 	glBindTexture(GL_TEXTURE_2D, texture->Handle);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
 	glEnable(GL_TEXTURE_2D);
 
@@ -105,10 +112,25 @@ unsigned Dither::process_opengl(ProcessOpenGLStruct *pgl)
 	shader->bind();
 	CHECK_GL_ERRORS("bind");
 
+	shader->uniform("txt", 0);
 	shader->uniform("width", (float)texture->HardwareWidth);
-	CHECK_GL_ERRORS("uniform width");
 	shader->uniform("height", (float)texture->HardwareHeight);
-	CHECK_GL_ERRORS("uniform height");
+	float thr = parameters[PARAM_THR].fvalue;
+	if (thr < 0)
+		thr = 0;
+	else if (thr > 256)
+		thr = 256;
+	shader->uniform("thr", thr);
+
+	float width_log2 = log2(texture->Width);
+	float height_log2 = log2(texture->Height);
+
+	float px = parameters[PARAM_PIXEL_WIDTH].fvalue;
+	px = powf(2, px * width_log2);
+	float py = parameters[PARAM_PIXEL_HEIGHT].fvalue;
+	py = powf(2, py * height_log2);
+	shader->uniform("pwidth", px);
+	shader->uniform("pheight", py);
 
 	glBegin(GL_QUADS);
 	glTexCoord2d(0, 0);
