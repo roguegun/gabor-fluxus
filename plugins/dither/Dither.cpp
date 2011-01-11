@@ -71,7 +71,7 @@ Dither::Dither(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 Dither::Dither()
 {
 	/* initialise plugin, set information */
-	set_name("dither");
+	set_name("Dither");
 	set_id("DTHR");
 
 	set_type(FF_EFFECT);
@@ -84,6 +84,14 @@ Dither::Dither()
 	add_parameter("thr", 31.0, 0.0, 256.0, FF_TYPE_STANDARD);
 	add_parameter("pixel-x", 0, 0, 1, FF_TYPE_XPOS);
 	add_parameter("pixel-y", 0, 0, 1, FF_TYPE_YPOS);
+
+	if (!glewIsSupported("GL_VERSION_2_0 ") || (glCreateProgram == NULL) ||
+			(glCreateShader == NULL) || (glAttachShader == NULL))
+	{
+		std::cerr << "OpenGL 2.0 required with GLSL support." << std::endl;
+		throw FFGLError();
+	}
+
 }
 
 Dither::~Dither()
@@ -151,10 +159,20 @@ unsigned Dither::process_opengl(ProcessOpenGLStruct *pgl)
 
 plugMainUnion plugMain(unsigned function_code, unsigned param, unsigned instance_id)
 {
-	/* creates the main plugin instance - this must not be global, because
-	 * static initialization order fiasco can occur */
-	static Dither *plugin = new Dither();
-	plugin = plugin; // gets rid of unused variable warning
-	return plug_main<Dither>(function_code, param, instance_id);
+	try
+	{
+		/* creates the main plugin instance - this must not be global, because
+		 * static initialization order fiasco can occur */
+		static Dither *plugin = new Dither();
+		plugin = plugin; // gets rid of unused variable warning
+		return plug_main<Dither>(function_code, param, instance_id);
+	}
+	catch (...)
+	{
+		static plugMainUnion p;
+		p.ivalue = FF_FAIL;
+
+		return p;
+	}
 }
 
