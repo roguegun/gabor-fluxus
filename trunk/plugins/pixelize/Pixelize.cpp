@@ -47,7 +47,7 @@ Pixelize::Pixelize()
 	if (GLEW_OK != err)
 	{
 		cerr << "Error: " << glewGetErrorString(err) << endl;
-		throw FFGLError();
+		throw FFGLExc();
 	}
 
 	set_name("pixelize");

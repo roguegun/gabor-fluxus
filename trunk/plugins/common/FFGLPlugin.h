@@ -96,7 +96,7 @@ class FFGLPlugin
 		virtual unsigned process_opengl(ProcessOpenGLStruct *pgl) = 0;
 		unsigned set_time(double *t) { time = *t; return FF_SUCCESS; }
 
-		class FFGLError { };
+		class FFGLExc : public std::exception {};
 
 	protected:
 		static void set_name(const char *name)

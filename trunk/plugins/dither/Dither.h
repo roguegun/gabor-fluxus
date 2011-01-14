@@ -16,8 +16,8 @@
  * along with the program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef COLORIZE_H
-#define COLORIZE_H
+#ifndef DITHER_H
+#define DITHER_H
 
 #include "FFGLPlugin.h"
 //#define DEBUG_GL
