@@ -89,9 +89,8 @@ Dither::Dither()
 			(glCreateShader == NULL) || (glAttachShader == NULL))
 	{
 		std::cerr << "OpenGL 2.0 required with GLSL support." << std::endl;
-		throw FFGLError();
+		throw FFGLExc();
 	}
-
 }
 
 Dither::~Dither()
@@ -167,7 +166,7 @@ plugMainUnion plugMain(unsigned function_code, unsigned param, unsigned instance
 		plugin = plugin; // gets rid of unused variable warning
 		return plug_main<Dither>(function_code, param, instance_id);
 	}
-	catch (...)
+	catch (FFGLPlugin::FFGLExc &e)
 	{
 		static plugMainUnion p;
 		p.ivalue = FF_FAIL;
