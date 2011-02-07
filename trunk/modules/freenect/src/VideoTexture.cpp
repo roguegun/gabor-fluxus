@@ -90,7 +90,6 @@ void VideoTexture::gen_texture()
 		tex_height = 1 << (unsigned)ceil(log2(height));
 	}
 
-
 	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, &texture_id);
 

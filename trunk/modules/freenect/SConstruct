@@ -74,6 +74,7 @@ Source += [MZDYN]
 
 if env['PLATFORM'] == 'darwin':
 	Frameworks += ['Racket', 'OpenGL']
+	Frameworks += ['CoreFoundation', 'IOKit'] # libusb
 	FrameworkPaths += [RacketLib]
 	IncludePaths += ['/opt/local/include']
 	LibPaths += ['/opt/local/lib']
@@ -114,9 +115,12 @@ if not GetOption('clean'):
 
 
 if STATIC:
-	if 'GLEW' in env['LIBS']:
-		env['LIBS'].remove('GLEW')
-		env['LIBS'].append((File('/opt/local/lib/libGLEW.a')))
+	for l in ['GLEW', 'freenect']:
+		if l in env['LIBS']:
+			env['LIBS'].remove(l)
+	for l in ['/opt/local/lib/libGLEW.a', '/usr/local/lib/libfreenect.a', \
+			'/opt/local/lib/libusb-1.0.a']:
+		env['LIBS'].append((File(l)))
 
 output = env.SharedLibrary(source = Source, 
 				  target = Target,

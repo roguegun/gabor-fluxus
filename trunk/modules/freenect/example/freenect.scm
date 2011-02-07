@@ -21,7 +21,7 @@
           [tcoords (freenect-tcoords)])
         (with-primitive p-rgb
             (texture t-rgb)
-            ;(translate #(-.51 0 0))
+            (translate #(-.51 0 0))
             (pdata-index-map!
                 (lambda (i t)
                     (list-ref tcoords (remainder i 4)))
@@ -29,7 +29,7 @@
         (with-primitive p-depth
             (texture t-depth)
             (opacity .5)
-            ;(translate #(.51 0 0))
+            (translate #(.51 0 0))
             (pdata-index-map!
                 (lambda (i t)
                     (list-ref tcoords (remainder i 4)))
