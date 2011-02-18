@@ -1,0 +1,144 @@
+# SConstruct
+import os, sys
+
+Target = 'fluxus-openni_ss'
+
+# fluxus version
+MajorVersion = "0"
+MinorVersion = "17"
+FluxusVersion = MajorVersion + MinorVersion
+
+STATIC = int(ARGUMENTS.get("STATIC", 0))
+
+# environment for building
+env = Environment()
+
+Source = ['src/OpenNI.cpp',
+		'src/VideoTexture.cpp',
+		'src/FluxusOpenNI.cpp']
+#'src/PointDrawer.cpp',
+#'src/main.cpp',
+
+IncludePaths = ['/usr/include', '/usr/include/ni', '/usr/include/nite']
+
+# libs to check for
+LibList = [['OpenNI', 'XnOpenNI.h'],
+		['XnVNite', 'XnVNite.h'],
+		['GLEW', 'GL/glew.h']]
+Libs = []
+LibPaths = []
+
+if sys.platform == 'linux2':
+	LibList += [['glut', 'GL/glut.h'], # FIXME: remove glut
+			['racket3m', 'scheme.h']]
+
+Frameworks = []
+FrameworkPaths = []
+
+# get PLT directories and collects install path
+DESTDIR = ARGUMENTS.get('DESTDIR', '')
+if len(DESTDIR)>0 and DESTDIR[0] != "/":
+                DESTDIR = "#" + DESTDIR
+
+if sys.platform == 'darwin':
+	file = os.popen('dirname "`which racket`"')
+	RacketBin = file.read()
+	file.close()
+	Prefix = ARGUMENTS.get('Prefix','/opt/local')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix', RacketBin[:-5])
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib")
+elif sys.platform == 'win32':
+	Prefix = ARGUMENTS.get('Prefix','c:/Program Files/Fluxus')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix','c:/Program Files/Racket')
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib")
+else:
+	Prefix = ARGUMENTS.get('Prefix','/usr/local')
+	RacketPrefix = ARGUMENTS.get('RacketPrefix','/usr/local')
+	RacketInclude = ARGUMENTS.get('RacketInclude', RacketPrefix + "/include/racket")
+	RacketLib = ARGUMENTS.get('RacketLib', RacketPrefix + "/lib/racket")
+	
+file = os.popen("racket -em \"(begin (display (path->string (system-library-subpath)))(exit))\"")
+#archpath = file.read()
+#FIXME: does not work with sudo for some reason on linux
+archpath = 'i386-linux/3m/'
+file.close()
+
+InstallLocation = DESTDIR + Prefix + '/lib/fluxus-' + FluxusVersion
+BinaryInstallLocation = InstallLocation + '/compiled/native/' + archpath
+print BinaryInstallLocation
+
+# set up PLT lib, framework, include path
+IncludePaths += [RacketInclude]
+LibPaths += [RacketLib]
+
+env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
+env.Append(CCFLAGS = '-DMZ_PRECISE_GC')
+MZDYN = RacketLib + '/mzdyn3m.o'
+
+Source += [MZDYN]
+
+if env['PLATFORM'] == 'darwin':
+	Frameworks += ['Racket', 'OpenGL']
+	Frameworks += ['CoreFoundation', 'IOKit'] # libusb
+	FrameworkPaths += [RacketLib]
+	IncludePaths += ['/opt/local/include']
+	LibPaths += ['/opt/local/lib']
+
+# configure environment
+CFLAGS = '-std=gnu99 -Wno-import'
+CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
+		'-ggdb2 -O3 -Wno-variadic-macros'
+CCFLAGS += ' -DUSE_GLUT' # FIXME: remove glut
+
+env.Append(CFLAGS = CFLAGS)
+env.MergeFlags(CCFLAGS)
+env.Append(CPPPATH = IncludePaths)
+env.Append(FRAMEWORKS = Frameworks)
+env.Append(FRAMEWORKPATH = FrameworkPaths)
+env.Append(LIBS = Libs)
+env.Append(LIBPATH = LibPaths)
+
+# check installed libraries
+
+if not GetOption('clean'):
+        conf = Configure(env)
+
+        # all libraries are required, and some of them require each other,
+        # hence the order is important, and autoadd=1
+        for (lib, headers) in LibList:
+                if not conf.CheckHeader(headers, language = 'C++'):
+                        print "ERROR: '%s' must be installed!" % (lib)
+                        Exit(1)
+
+        env = conf.Finish()
+
+		# remove racket, it will be added as a framework
+        if env['PLATFORM'] == 'darwin':
+                LibList = filter(lambda x: x[0] != 'racket3m', LibList)
+
+        # ... but we shouldn't forget to add them to LIBS manually
+        env.Append(LIBS = [rec[0] for rec in LibList])
+
+
+'''
+if STATIC:
+	for l in ['GLEW', 'freenect']:
+		if l in env['LIBS']:
+			env['LIBS'].remove(l)
+	for l in ['/opt/local/lib/libGLEW.a', '/usr/local/lib/libfreenect.a', \
+			'/opt/local/lib/libusb-1.0.a']:
+		env['LIBS'].append((File(l)))
+'''
+
+#env.Program(source = Source, target = Target)
+output = env.SharedLibrary(source = Source, 
+				  target = Target,
+				  FRAMEWORKS = Frameworks,
+				  SHLIBPREFIX = '')
+
+env.Install(BinaryInstallLocation, output)
+#env.Install(InstallLocation, TargetSS)
+env.Alias('install', InstallLocation)
+
