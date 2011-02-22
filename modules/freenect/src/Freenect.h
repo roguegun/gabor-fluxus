@@ -61,14 +61,24 @@ class Freenect
 		unsigned get_rgb_calibrated_texture_id() { return device->rgb_calibrated_txt->get_texture_id(); }
 		float *get_tcoords() { return device->rgb_txt->get_tcoords(); }
 
+		static void set_depth_mode(int m) { depth_mode = m; };
+
 		Vector worldcoord_at(int x, int y);
 
+		enum {
+			DEPTH_RAW = 0,
+			DEPTH_SCALED,
+			DEPTH_HIST
+		};
 	private:
 		static freenect_context *ctx;
 		static freenect_context *get_context();
 
 		static void video_cb(freenect_device *dev, void *rgb, uint32_t timestamp);
 		static void depth_cb(freenect_device *dev, void *depth, uint32_t timestamp);
+
+		static int depth_mode;
+		static unsigned depth_hist[2048];
 
 		class Device
 		{

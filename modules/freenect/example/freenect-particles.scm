@@ -4,13 +4,12 @@
 
 (define kinect (freenect-open 0))
 
-(hint-ignore-depth)
-(hint-unlit)
-
 (define pw 640)
 (define ph 480)
 
 (define p (build-particles (* pw ph)))
+
+(freenect-set-depth-mode 'hist)
 
 (define particles-vert
 "
