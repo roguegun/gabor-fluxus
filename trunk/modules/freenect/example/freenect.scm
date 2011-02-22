@@ -8,6 +8,8 @@
 
 (define kinect (freenect-open 0))
 
+(freenect-set-depth-mode 'hist)
+
 (hint-ignore-depth)
 (hint-unlit)
 
@@ -37,3 +39,4 @@
  
 (every-frame (with-freenect-device kinect
                 (freenect-update)))
+

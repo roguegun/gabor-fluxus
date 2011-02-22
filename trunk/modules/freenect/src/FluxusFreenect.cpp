@@ -200,6 +200,48 @@ Scheme_Object *freenect_get_depth_texture(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+// StartFunctionDoc-en
+// freenect-set-depth-mode mode-symbol
+// Returns: void
+// Description:
+// Sets how the depth values are converted. Mode is one of 'raw, 'scaled, 'hist.
+// 'raw returns the original 11-bit values, 'scaled scales them up to the visible range,
+// 'hist moves the values into the visually sensible space using a histogram. The default
+// mode is 'hist.
+// Example:
+// (freenect-set-depth-mode 'hist)
+// EndFunctionDoc
+
+Scheme_Object *freenect_set_depth_mode(int argc, Scheme_Object **argv)
+{
+	DECL_ARGV();
+
+	ArgCheck("freenect-set-depth-mode", "S", argc, argv);
+	string m = SymbolName(argv[0]);
+	int mode = -1;
+
+	string modes[] = {"raw", "scaled", "hist"};
+	for (unsigned i = 0; i < sizeof(modes) / sizeof(modes[0]); i++)
+	{
+		if (m == modes[i])
+		{
+			mode = i;
+			break;
+		}
+	}
+	if (mode == -1)
+	{
+		cerr << "freenect-set-depth-mode: unknown depth mode." << endl;
+	}
+	else
+	{
+		Freenect::set_depth_mode(mode);
+	}
+
+	MZ_GC_UNREG();
+	return scheme_void;
+}
+
 Scheme_Object *freenect_get_rgb_calibrated_texture(int argc, Scheme_Object **argv)
 {
 	Scheme_Object *ret = scheme_void;
@@ -342,6 +384,7 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	scheme_add_global("freenect-get-rgb-texture", scheme_make_prim_w_arity(freenect_get_rgb_texture, "freenect-get-rgb-texture", 0, 0), menv);
 	scheme_add_global("freenect-get-depth-texture", scheme_make_prim_w_arity(freenect_get_depth_texture, "freenect-get-depth-texture", 0, 0), menv);
 	scheme_add_global("freenect-get-rgb-calibrated-texture", scheme_make_prim_w_arity(freenect_get_rgb_calibrated_texture, "freenect-get-rgb-calbirated-texture", 0, 0), menv);
+	scheme_add_global("freenect-set-depth-mode", scheme_make_prim_w_arity(freenect_set_depth_mode, "freenect-set-depth-mode", 1, 1), menv);
 	scheme_add_global("freenect-update", scheme_make_prim_w_arity(freenect_update, "freenect-update", 0, 0), menv);
 	scheme_add_global("freenect-tcoords", scheme_make_prim_w_arity(freenect_tcoords, "freenect-tcoords", 0, 0), menv);
 	scheme_add_global("freenect-worldcoord-at", scheme_make_prim_w_arity(freenect_worldcoord_at, "freenect-worldcoord-at", 2, 2), menv);

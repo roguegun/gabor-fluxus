@@ -26,13 +26,16 @@ bool Freenect::luts = false;
 unsigned *Freenect::rgb2depth_lut = NULL;
 float *Freenect::distance_lut = NULL;
 
+int Freenect::depth_mode = Freenect::DEPTH_HIST;
+unsigned Freenect::depth_hist[2048];
+
 Freenect::Freenect(int id) :
 	device(new Device(id))
 {
 	if (!luts)
 	{
 		// calculating lookup table for rgb and depth image calibration
-		rgb2depth_lut = new unsigned[640 * 480];
+		rgb2depth_lut = new unsigned[FREENECT_FRAME_W * FREENECT_FRAME_H];
 		// relative transform of the 2 images
 		const float m[4][4] =
 			{{0.942040, -0.004628, 0.000000, 0.000005},
@@ -42,9 +45,9 @@ Freenect::Freenect(int id) :
 		unsigned *r2d_lut = rgb2depth_lut;
 
 		Vector uv, t;
-		for (int y = 0; y < 480; y++)
+		for (int y = 0; y < FREENECT_FRAME_H; y++)
 		{
-			for (int x = 0; x < 640; x++)
+			for (int x = 0; x < FREENECT_FRAME_W; x++)
 			{
 				uv = Vector(x, y);
 				//uv.x = x; uv.y = y; uv.z = 0; uv.w = 1;
@@ -66,7 +69,7 @@ Freenect::Freenect(int id) :
 				else if (t.y > 479)
 					t.y = 479;
 
-				*r2d_lut++ = (((int)(t.y)) * 640 + (int)t.x) * 3;
+				*r2d_lut++ = (((int)(t.y)) * FREENECT_FRAME_W + (int)t.x) * 3;
 			}
 		}
 
@@ -124,14 +127,14 @@ Freenect::Device::Device(int id) :
 	if (freenect_open_device(get_context(), &handle, id) < 0)
 		throw ExcFreenectOpenDevice();
 
-	rgb_pixels = new uint8_t[640 * 480 * 3];
-	rgb_txt = new VideoTexture(640, 480, GL_RGB);
+	rgb_pixels = new uint8_t[FREENECT_FRAME_W * FREENECT_FRAME_H * 3];
+	rgb_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_RGB);
 
-	depth_pixels = new uint16_t[640 * 480];
-	depth_txt = new VideoTexture(640, 480, GL_LUMINANCE, GL_UNSIGNED_SHORT);
+	depth_pixels = new uint16_t[FREENECT_FRAME_W * FREENECT_FRAME_H];
+	depth_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_LUMINANCE, GL_UNSIGNED_SHORT);
 
-	rgb_calibrated_pixels = new uint8_t[640 * 480 * 3];
-	rgb_calibrated_txt = new VideoTexture(640, 480, GL_RGB);
+	rgb_calibrated_pixels = new uint8_t[FREENECT_FRAME_W * FREENECT_FRAME_H * 3];
+	rgb_calibrated_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_RGB);
 
 	pthread_mutex_init(&mutex, NULL);
 
@@ -179,7 +182,7 @@ void Freenect::video_cb(freenect_device *dev, void *rgb, uint32_t timestamp)
 	Freenect::Device *device = reinterpret_cast<Freenect::Device *>(freenect_get_user(dev));
 	pthread_mutex_lock(&(device->mutex));
 
-	memcpy(device->rgb_pixels, rgb, 640 * 480 * 3 * sizeof(uint8_t));
+	memcpy(device->rgb_pixels, rgb, FREENECT_FRAME_W * FREENECT_FRAME_H * 3 * sizeof(uint8_t));
 	device->new_rgb_frame = true;
 
 	pthread_mutex_unlock(&(device->mutex));
@@ -191,11 +194,54 @@ void Freenect::depth_cb(freenect_device *dev, void *vdepth, uint32_t timestamp)
 	pthread_mutex_lock(&(device->mutex));
 
 	uint16_t *depth = reinterpret_cast<uint16_t *>(vdepth);
-	for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+
+	if (depth_mode == DEPTH_RAW) // raw 11-bit depth data
 	{
-		uint32_t v = depth[i];
-		device->depth_pixels[i] = 65535 - ((v * v) >> 4);
+		memcpy(device->depth_pixels, depth, FREENECT_FRAME_PIX * sizeof(uint16_t));
 	}
+	else if (depth_mode == DEPTH_SCALED) // scaled up to 16-bit range
+	{
+		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+		{
+			device->depth_pixels[i] = 65535 - (depth[i] << 5);
+		}
+	}
+	else if (depth_mode == DEPTH_HIST) // remapped according to histogram
+	{
+		memset(depth_hist, 0, 2048 * sizeof(uint16_t));
+
+		unsigned n = 0;
+		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+		{
+			int v = depth[i];
+			if (v)
+			{
+				depth_hist[v]++;
+				n++;
+			}
+		}
+
+		for (int i = 1; i < 2048; i++)
+		{
+			depth_hist[i] += depth_hist[i - 1];
+		}
+
+		if (n)
+		{
+			for (int i = 0; i < 2048; i++)
+			{
+				depth_hist[i] = static_cast<unsigned>(65535 *
+						(1.f - static_cast<float>(depth_hist[i]) / static_cast<float>(n)));
+			}
+			depth_hist[0] = 0;
+		}
+
+		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+		{
+			device->depth_pixels[i] = depth_hist[depth[i]];
+		}
+	}
+
 	device->new_depth_frame = true;
 
 	pthread_mutex_unlock(&(device->mutex));
@@ -251,7 +297,7 @@ void Freenect::set_tilt(float degrees)
 Vector Freenect::worldcoord_at(int x, int y)
 {
 	// http://graphics.stanford.edu/~mdfisher/Kinect.html
-	float depth = distance_lut[device->depth_pixels[y * 640 + x]];
+	float depth = distance_lut[device->depth_pixels[y * FREENECT_FRAME_W + x]];
 
 	static const double fx_d = 1.0 / 5.9421434211923247e+02;
     static const double fy_d = 1.0 / 5.9104053696870778e+02;
