@@ -132,6 +132,7 @@ Surface::Surface(int w, int h, unsigned target /* = GL_TEXTURE_2D */,
 				GL_COLOR_ATTACHMENT0_EXT + i,
 				target, textures[i], 0);
 	}
+	check_fbo_errors();
 
 	/* attach the depth buffer to the fbo */
 	if (depth_needed)
@@ -163,6 +164,7 @@ void Surface::bind(int texture_idx /*=0*/)
 {
 	/* saving the viewport and colour buffer configuration */
 	glPushAttrib(GL_VIEWPORT_BIT | GL_COLOR_BUFFER_BIT);
+	//glPushAttrib(GL_ALL_ATTRIB_BITS);
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo);
 	glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
