@@ -35,6 +35,8 @@ class GSRD : public FFGLPlugin
 		unsigned process_opengl(ProcessOpenGLStruct *pgl);
 
 	private:
+		void reset(unsigned handle);
+
 		int current_fbo_txt;
 		Surface *fbo;
 
@@ -46,7 +48,8 @@ class GSRD : public FFGLPlugin
 			PARAM_RU = 0,
 			PARAM_RV,
 			PARAM_K,
-			PARAM_F
+			PARAM_F,
+			PARAM_RESET
 		};
 
 };
