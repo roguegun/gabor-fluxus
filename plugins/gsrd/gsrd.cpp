@@ -106,6 +106,7 @@ void main(void) \n\
 	u += du * 0.6; \n\
 	v += dv * 0.6; \n\
 	gl_FragColor = vec4(clamp(u, 0.0, 1.0), 1.0 - u / v, clamp(v, 0.0, 1.0), 1.0); \n\
+	//gl_FragColor = vec4(texColor.r, texColor.r, texColor.r, 1.0); \n\
 } \n\
 ";
 
@@ -131,14 +132,6 @@ GSRD::GSRD(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	fbo->bind(0);
-	glClearColor(0, 0, 0, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	fbo->unbind();
-	fbo->bind(1);
-	glClear(GL_COLOR_BUFFER_BIT);
-	fbo->unbind();
-
 	current_fbo_txt = 0;
 }
 
@@ -152,7 +145,7 @@ GSRD::GSRD()
 	}
 
 	/* initialise plugin, set information */
-	set_name("GSRD");
+	set_name("Gray-Scott RD");
 	set_id("GSRD");
 
 	set_type(FF_EFFECT);
@@ -166,6 +159,7 @@ GSRD::GSRD()
 	add_parameter("rv", 0.04, 0.0, 1.0, FF_TYPE_STANDARD);
 	add_parameter("k", 0.047, 0.0, 1.0, FF_TYPE_STANDARD);
 	add_parameter("f", 0.1, 0.0, 1.0, FF_TYPE_STANDARD);
+	add_parameter("reset", 0.0, FF_TYPE_EVENT);
 
 	if (!glewIsSupported("GL_VERSION_2_0 ") || (glCreateProgram == NULL) ||
 			(glCreateShader == NULL) || (glAttachShader == NULL))
@@ -181,8 +175,36 @@ GSRD::~GSRD()
 	delete fbo;
 }
 
+void GSRD::reset(unsigned handle)
+{
+	glBindTexture(GL_TEXTURE_2D, handle);
+
+	for (int i = 0; i < 2; i++)
+	{
+		fbo->bind(i);
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		glColor4f(1, 1, 1, 1);
+		glBegin(GL_QUADS);
+		glTexCoord2f(0, 0);
+		glVertex2f(-1, -1);
+		glTexCoord2f(fbo->max_s, 0);
+		glVertex2f(1, -1);
+		glTexCoord2f(fbo->max_s, fbo->max_t);
+		glVertex2f(1, 1);
+		glTexCoord2f(0, fbo->max_t);
+		glVertex2f(-1, 1);
+		glEnd();
+
+		fbo->unbind();
+	}
+}
+
 unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 {
+	static bool inited = false;
+
 	if ((pgl->numInputTextures < 1) || (pgl->inputTextures[0] == NULL))
 		return FF_FAIL;
 
@@ -193,6 +215,12 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	//float s_t = (float)texture->Height/(float)texture->HardwareHeight;
 
 	glEnable(GL_TEXTURE_2D);
+
+	if ((parameters[PARAM_RESET].fvalue > 0) || !inited)
+	{
+		reset(texture->Handle);
+		inited = true;
+	}
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, texture->Handle);
@@ -215,7 +243,7 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	shader->uniform("rv", parameters[PARAM_RV].fvalue);
 	shader->uniform("k", parameters[PARAM_K].fvalue);
 	shader->uniform("f", parameters[PARAM_F].fvalue);
-	shader->uniform("width", fbo->width);
+	shader->uniform("width", float(fbo->width));
 
 	/*
 	   cerr << "params " << parameters[PARAM_RU].fvalue << " " <<
@@ -228,17 +256,13 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glBegin(GL_QUADS);
-	glMultiTexCoord2f(0, 0, 0);
-	//glMultiTexCoord2f(1, 0, 0);
+	glTexCoord2f(0, 0);
 	glVertex2f(-1, -1);
-	glMultiTexCoord2f(0, fbo->max_s, 0);
-	//glMultiTexCoord2f(1, s_s, 0);
+	glTexCoord2f(fbo->max_s, 0);
 	glVertex2f(1, -1);
-	glMultiTexCoord2f(0, fbo->max_s, fbo->max_t);
-	//glMultiTexCoord2f(1, s_s, s_t);
+	glTexCoord2f(fbo->max_s, fbo->max_t);
 	glVertex2f(1, 1);
-	glMultiTexCoord2f(0, 0, fbo->max_t);
-	//glMultiTexCoord2f(1, 0, s_t);
+	glTexCoord2f(0, fbo->max_t);
 	glVertex2f(-1, 1);
 	glEnd();
 
