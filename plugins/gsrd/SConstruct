@@ -5,7 +5,7 @@ LIBS = []
 FRAMEWORKS = []
 ECCFLAGS = ''
 
-DEBUG = 1
+DEBUG = 0
 
 SConscript('../common/SConscript',
 	exports = ['DEBUG', 'SOURCES', 'TARGET', 'LIBS', 'FRAMEWORKS', 'ECCFLAGS'])

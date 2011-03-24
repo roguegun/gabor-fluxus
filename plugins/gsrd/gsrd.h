@@ -49,6 +49,7 @@ class GSRD : public FFGLPlugin
 			PARAM_RV,
 			PARAM_K,
 			PARAM_F,
+			PARAM_ITERATIONS,
 			PARAM_RESET
 		};
 
