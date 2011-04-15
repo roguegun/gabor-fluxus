@@ -63,7 +63,11 @@ class Freenect
 
 		static void set_depth_mode(int m) { depth_mode = m; };
 
+		float depth_at(int x, int y);
+
 		Vector worldcoord_at(int x, int y);
+
+		void *get_depth_pixels();
 
 		enum {
 			DEPTH_RAW = 0,
