@@ -38,7 +38,7 @@ void main(void)
 (with-primitive p
     (hint-none)
     (hint-points)
-    (scale 10)
+    (scale 7)
     (translate #(-.5 -.5 0))
     (with-freenect-device kinect
         (texture (freenect-get-depth-texture)))

@@ -341,6 +341,39 @@ Scheme_Object *freenect_tcoords(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+// StartFunctionDoc-en
+// freenect-depth-at x-int y-int
+// Returns: depth-number
+// Description:
+// Returns the depth value at the given coordinate.
+// Example:
+// (freenect-depth-at 0 0) ; TODO
+// EndFunctionDoc
+
+Scheme_Object *freenect_depth_at(int argc, Scheme_Object **argv)
+{
+	Scheme_Object *ret = NULL;
+	MZ_GC_DECL_REG(2);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_VAR_IN_REG(1, ret);
+	MZ_GC_REG();
+
+	ArgCheck("freenect-depth-at", "ii", argc, argv);
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-depth-at can only be used while a freenect device is grabbed." << endl;
+		ret = scheme_void;
+	}
+	else
+	{
+		float d = grabbed_device->depth_at(IntFromScheme(argv[0]), IntFromScheme(argv[1]));
+		ret = scheme_make_float(d);
+	}
+	MZ_GC_UNREG();
+	return ret;
+}
+
 Scheme_Object *freenect_worldcoord_at(int argc, Scheme_Object **argv)
 {
 	Scheme_Object *ret = NULL;
@@ -365,6 +398,29 @@ Scheme_Object *freenect_worldcoord_at(int argc, Scheme_Object **argv)
 	return ret;
 }
 
+Scheme_Object *freenect_get_depth_imgptr(int argc, Scheme_Object **argv)
+{
+    Scheme_Object *ret = NULL;
+    MZ_GC_DECL_REG(2);
+    MZ_GC_VAR_IN_REG(0, argv);
+    MZ_GC_VAR_IN_REG(1, ret);
+    MZ_GC_REG();
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-get-depth-imgptr can only be used while a freenect device is grabbed." << endl;
+		ret = scheme_void;
+	}
+	else
+	{
+		ret = scheme_make_cptr(grabbed_device->get_depth_pixels(), scheme_make_utf8_string("img16ptr"));
+	}
+
+    MZ_GC_UNREG();
+    return ret;
+}
+
+
 Scheme_Object *scheme_reload(Scheme_Env *env)
 {
 	Scheme_Env *menv = NULL;
@@ -387,7 +443,9 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	scheme_add_global("freenect-set-depth-mode", scheme_make_prim_w_arity(freenect_set_depth_mode, "freenect-set-depth-mode", 1, 1), menv);
 	scheme_add_global("freenect-update", scheme_make_prim_w_arity(freenect_update, "freenect-update", 0, 0), menv);
 	scheme_add_global("freenect-tcoords", scheme_make_prim_w_arity(freenect_tcoords, "freenect-tcoords", 0, 0), menv);
+	scheme_add_global("freenect-depth-at", scheme_make_prim_w_arity(freenect_depth_at, "freenect-depth-at", 2, 2), menv);
 	scheme_add_global("freenect-worldcoord-at", scheme_make_prim_w_arity(freenect_worldcoord_at, "freenect-worldcoord-at", 2, 2), menv);
+	scheme_add_global("freenect-get-depth-imgptr", scheme_make_prim_w_arity(freenect_get_depth_imgptr, "freenect-get-depth-imgptr", 0, 0), menv);
 
 	scheme_finish_primitive_module(menv);
 	MZ_GC_UNREG();

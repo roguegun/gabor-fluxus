@@ -294,21 +294,45 @@ void Freenect::set_tilt(float degrees)
 	freenect_set_tilt_degs(device->handle, degrees);
 }
 
+float Freenect::depth_at(int x, int y)
+{
+	if ((x >= FREENECT_FRAME_W) || (x < 0) ||
+		(y >= FREENECT_FRAME_H) || (y < 0))
+	{
+		return 0;
+	}
+	else
+	{
+		return device->depth_pixels[y * FREENECT_FRAME_W + x] / 65535.0f;
+	}
+}
+
 Vector Freenect::worldcoord_at(int x, int y)
 {
 	// http://graphics.stanford.edu/~mdfisher/Kinect.html
-	float depth = distance_lut[device->depth_pixels[y * FREENECT_FRAME_W + x]];
+	float depth = 0;
+
+	if ((x >= 0) && (x < FREENECT_FRAME_W) &&
+		(y >= 0) && (y < FREENECT_FRAME_H))
+	{
+		depth = distance_lut[device->depth_pixels[y * FREENECT_FRAME_W + x]];
+	}
 
 	static const double fx_d = 1.0 / 5.9421434211923247e+02;
-    static const double fy_d = 1.0 / 5.9104053696870778e+02;
-    static const double cx_d = 3.3930780975300314e+02;
-    static const double cy_d = 2.4273913761751615e+02;
+	static const double fy_d = 1.0 / 5.9104053696870778e+02;
+	static const double cx_d = 3.3930780975300314e+02;
+	static const double cy_d = 2.4273913761751615e+02;
 
-    Vector result;
-    result.x = float((x - cx_d) * depth * fx_d);
-    result.y = float((y - cy_d) * depth * fy_d);
-    result.z = float(depth);
+	Vector result;
+	result.x = float((x - cx_d) * depth * fx_d);
+	result.y = float((y - cy_d) * depth * fy_d);
+	result.z = float(depth);
 
 	return result;
+}
+
+void *Freenect::get_depth_pixels()
+{
+	return static_cast<void *>(device->depth_pixels);
 }
 
