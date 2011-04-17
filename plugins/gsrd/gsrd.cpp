@@ -105,7 +105,7 @@ void main(void) \n\
 //============================================================================ \n\
 	u += du * 0.6; \n\
 	v += dv * 0.6; \n\
-	gl_FragColor = vec4(clamp(u, 0.0, 1.0), 1.0 - u / v, clamp(v, 0.0, 1.0), 1.0); \n\
+	gl_FragColor = vec4(clamp(u, 0.0, 1.0), .0, clamp(v, 0.0, 1.0), 1.0); \n\
 } \n\
 ";
 
@@ -117,7 +117,11 @@ GSRD::GSRD(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 	if (shader == NULL)
 		shader = new GLSLProg(vertex_shader, fragment_shader);
 
-	fbo = new Surface(viewport.width, viewport.height, GL_TEXTURE_2D, 2);
+	FBO::Format format;
+	format.set_num_color_buffers(2);
+
+	fbo = new FBO(viewport.width, viewport.height, format);
+
 	// FIXME: do this in Surface.cpp
 	for (int i = 0; i < 2; i++)
 	{
@@ -160,6 +164,7 @@ GSRD::GSRD()
 	add_parameter("f", 0.1, 0.0, 1.0, FF_TYPE_STANDARD);
 	add_parameter("iterations", 25., 1.0, 50.0, FF_TYPE_STANDARD);
 	add_parameter("reset", 0.0, FF_TYPE_EVENT);
+	add_parameter("scale", 1.0, 1.0, 4.0, FF_TYPE_STANDARD);
 
 	if (!glewIsSupported("GL_VERSION_2_0 ") || (glCreateProgram == NULL) ||
 			(glCreateShader == NULL) || (glAttachShader == NULL))
@@ -225,7 +230,7 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	shader->uniform("rv", parameters[PARAM_RV].fvalue);
 	shader->uniform("k", parameters[PARAM_K].fvalue);
 	shader->uniform("f", parameters[PARAM_F].fvalue);
-	shader->uniform("width", float(fbo->width));
+	shader->uniform("width", float(fbo->width) / parameters[PARAM_SCALE].fvalue);
 	shader->unbind();
 
 	glActiveTexture(GL_TEXTURE1);
@@ -247,6 +252,8 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		glColor4f(1, 1, 1, 1);
 
 		glBegin(GL_QUADS);
 		glTexCoord2f(0, 0);
@@ -274,6 +281,8 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	fbo->bind_texture(current_fbo_txt);
+
+	glColor4f(1, 1, 1, 1);
 
 	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0);

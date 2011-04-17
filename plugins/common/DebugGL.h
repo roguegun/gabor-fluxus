@@ -4,7 +4,7 @@
 #include <string>
 
 // define DEBUG_GL to use the CHECK_GL_ERRORS macro
-//#define DEBUG_GL
+#define DEBUG_GL
 
 void check_gl_errors(const std::string &call);
 

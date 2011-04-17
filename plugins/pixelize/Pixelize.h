@@ -19,7 +19,7 @@
 #ifndef PIXELIZE_H
 #define PIXELIZE_H
 
-#include "Surface.h"
+#include "FBO.h"
 #include "FFGLPlugin.h"
 
 class Pixelize : public FFGLPlugin
@@ -32,7 +32,7 @@ class Pixelize : public FFGLPlugin
 		unsigned process_opengl(ProcessOpenGLStruct *pgl);
 
 	private:
-		Surface *pixelize_surface;
+		FBO *pixelize_fbo;
 
 		void view_ortho();
 		void view_perspective();

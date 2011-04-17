@@ -23,7 +23,7 @@
 //#define DEBUG_GL
 #include "DebugGL.h"
 #include "GLSLProg.h"
-#include "Surface.h"
+#include "FBO.h"
 
 class GSRD : public FFGLPlugin
 {
@@ -38,7 +38,7 @@ class GSRD : public FFGLPlugin
 		void reset(unsigned handle);
 
 		int current_fbo_txt;
-		Surface *fbo;
+		FBO *fbo;
 
 		static GLSLProg *shader;
 		static const char *vertex_shader;
@@ -50,9 +50,9 @@ class GSRD : public FFGLPlugin
 			PARAM_K,
 			PARAM_F,
 			PARAM_ITERATIONS,
-			PARAM_RESET
+			PARAM_RESET,
+			PARAM_SCALE
 		};
-
 };
 
 #endif

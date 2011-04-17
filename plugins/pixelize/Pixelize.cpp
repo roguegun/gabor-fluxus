@@ -27,9 +27,9 @@ using namespace std;
 Pixelize::Pixelize(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 {
 	/* this is called when the plugin is instantiated */
-	pixelize_surface = new Surface(viewport.width, viewport.height);
+	pixelize_fbo = new FBO(viewport.width, viewport.height);
 
-	pixelize_surface->bind_texture();
+	pixelize_fbo->bind_texture();
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -63,7 +63,7 @@ Pixelize::Pixelize()
 Pixelize::~Pixelize()
 {
 	/* called when the plugin is deinstantiated */
-	delete pixelize_surface;
+	delete pixelize_fbo;
 }
 
 /*
@@ -112,15 +112,15 @@ unsigned Pixelize::process_opengl(ProcessOpenGLStruct *pgl)
 								 for a 1024 pixel wide screen, pow provides smooth zooming */
 	FFGLTextureStruct *texture = pgl->inputTextures[0];
 
-	/* maximum texture coordinates on surface */
+	/* maximum texture coordinates on fbo */
 	float s_s = (float)texture->Width/(float)texture->HardwareWidth;
 	float s_t = (float)texture->Height/(float)texture->HardwareHeight;
 
 	glEnable(GL_TEXTURE_2D);
-	/* render small rectange version of the surface on pixelize_surface */
+	/* render small rectange version of the fbo on pixelize_fbo */
 	/* input is used as a texture */
 	glBindTexture(GL_TEXTURE_2D, texture->Handle);
-	pixelize_surface->bind();
+	pixelize_fbo->bind();
 
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -129,18 +129,18 @@ unsigned Pixelize::process_opengl(ProcessOpenGLStruct *pgl)
 	glTexCoord2f(0, 0);
 	glVertex2f(0, 0);
 	glTexCoord2f(s_s, 0);
-	glVertex2f(m * pixelize_surface->width, 0);
+	glVertex2f(m * pixelize_fbo->width, 0);
 	glTexCoord2f(s_s, s_t);
-	glVertex2f(m * pixelize_surface->width, m * pixelize_surface->height);
+	glVertex2f(m * pixelize_fbo->width, m * pixelize_fbo->height);
 	glTexCoord2f(0, s_t);
-	glVertex2f(0, m * pixelize_surface->height);
+	glVertex2f(0, m * pixelize_fbo->height);
 	glEnd();
 
-	pixelize_surface->unbind();
+	pixelize_fbo->unbind();
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, pgl->HostFBO);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	pixelize_surface->bind_texture();
+	pixelize_fbo->bind_texture();
 
 	GLint filter = (parameters[PARAM_LINEAR].fvalue > 0.0) ? GL_LINEAR : GL_NEAREST;
 
@@ -153,11 +153,11 @@ unsigned Pixelize::process_opengl(ProcessOpenGLStruct *pgl)
 	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0);
 	glVertex2i(-1, -1);
-	glTexCoord2f(m * pixelize_surface->max_s, 0);
+	glTexCoord2f(m * pixelize_fbo->max_s, 0);
 	glVertex2i(1, -1);
-	glTexCoord2f(m * pixelize_surface->max_s, m * pixelize_surface->max_t);
+	glTexCoord2f(m * pixelize_fbo->max_s, m * pixelize_fbo->max_t);
 	glVertex2i(1, 1);
-	glTexCoord2f(0, m * pixelize_surface->max_t);
+	glTexCoord2f(0, m * pixelize_fbo->max_t);
 	glVertex2i(-1, 1);
 	glEnd();
 
