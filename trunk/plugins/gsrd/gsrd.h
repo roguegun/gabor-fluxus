@@ -44,14 +44,16 @@ class GSRD : public FFGLPlugin
 		static const char *vertex_shader;
 		static const char *fragment_shader;
 
+		static GLSLProg *seed_shader;
+		static const char *seed_fragment_shader;
+
 		enum {
-			PARAM_RU = 0,
-			PARAM_RV,
+			PARAM_DU = 0,
+			PARAM_DV,
 			PARAM_K,
 			PARAM_F,
 			PARAM_ITERATIONS,
-			PARAM_RESET,
-			PARAM_SCALE
+			PARAM_RESET
 		};
 };
 
