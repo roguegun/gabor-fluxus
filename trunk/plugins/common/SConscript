@@ -22,7 +22,7 @@ TARGET = '#' + TARGET
 SOURCES = ['#' + s for s in SOURCES]
 STATIC = 0
 
-LIBSOURCES = ['FFGLPlugin.cpp', 'Surface.cpp', 'DebugGL.cpp', 'GLSLProg.cpp']
+LIBSOURCES = ['FFGLPlugin.cpp', 'FBO.cpp', 'DebugGL.cpp', 'GLSLProg.cpp']
 
 LIBINCLUDES = ['./']	# add current directory to the include path
 LIBPATH = []

@@ -59,7 +59,7 @@ GLSLProg::GLSLProg(const char *vertex_src, const char *fragment_src /* = NULL */
 		std::cerr << "GLSLProg compile error: " << log << std::endl;
 	}
 	CHECK_GL_ERRORS("GLSLProg constr");
-	std::cerr << "GLSLProg constr OK! " << program_handle << std::endl;
+	//std::cerr << "GLSLProg constr OK! " << program_handle << std::endl;
 }
 
 GLSLProg::~GLSLProg()
