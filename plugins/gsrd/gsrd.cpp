@@ -24,12 +24,6 @@
 
 using namespace std;
 
-/* shaders are based on
- * rdex by Claude Heiland-Allen (http://rdex.goto10.org/)
- * and RDiffusion libcinder sample by Robert Hodgin
- * (https://github.com/cinder/Cinder/tree/master/samples/RDiffusion)
- */
-
 const char *GSRD::vertex_shader ="\n\
 void main(void) \n\
 { \n\
@@ -40,97 +34,85 @@ void main(void) \n\
 
 const char *GSRD::fragment_shader = "\n\
 #version 120 \n\
-#define KERNEL_SIZE 9 \n\
 \n\
-float kernel[KERNEL_SIZE]; \n\
+uniform sampler2D tex; // u = r, v = b \n\
+uniform float dU; \n\
+uniform float dV; \n\
+uniform float f; \n\
+uniform float k; \n\
 uniform float width; \n\
-\n\
-vec2 offset[KERNEL_SIZE]; \n\
-\n\
-uniform sampler2D srcTexture; \n\
-uniform sampler2D texture; // U := r, V := b, other channels ignored \n\
-uniform float ru; // rate of diffusion of U \n\
-uniform float rv; // rate of diffusion of V \n\
-uniform float f; // some coupling parameter \n\
-uniform float k; // another coupling parameter \n\
 \n\
 void main(void) \n\
 { \n\
-	vec2 texCoord = gl_TexCoord[0].st;		// center coordinates \n\
-	float w = 1.0 / width; \n\
-	float h = 1.0 / width; \n\
+	vec2 tidx = gl_TexCoord[0].st; \n\
+	float s = 1.0 / width; \n\
 \n\
-	kernel[0] = 0.707106781; \n\
-	kernel[1] = 1.0; \n\
-	kernel[2] = 0.707106781; \n\
-	kernel[3] = 1.0; \n\
-	kernel[4] = -6.82842712; \n\
-	kernel[5] = 1.0; \n\
-	kernel[6] = 0.707106781; \n\
-	kernel[7] = 1.0; \n\
-	kernel[8] = 0.707106781; \n\
+	vec2 txt_clr = texture2D(tex, tidx).rb;\n\
 \n\
-	offset[0] = vec2( -w, -h); \n\
-	offset[1] = vec2(0.0, -h); \n\
-	offset[2] = vec2(  w, -h); \n\
+	vec2 top_idx = tidx + vec2(0., -s); \n\
+	vec2 bottom_idx = tidx + vec2(0, s); \n\
+	vec2 left_idx = tidx + vec2(-s, 0); \n\
+	vec2 right_idx = tidx + vec2(s, 0); \n\
 \n\
-	offset[3] = vec2( -w, 0.0); \n\
-	offset[4] = vec2(0.0, 0.0); \n\
-	offset[5] = vec2(  w, 0.0); \n\
+	float currF = f; \n\
+	float currK = k; \n\
+	float currU = txt_clr.r; \n\
+	float currV = txt_clr.g; \n\
+	float d2 = currU * currV * currV; \n\
 \n\
-	offset[6] = vec2( -w, h); \n\
-	offset[7] = vec2(0.0, h); \n\
-	offset[8] = vec2(  w, h); \n\
+	vec2 uv = clamp(txt_clr + \n\
+			vec2(dU, dV) * \n\
+				 (texture2D(tex, right_idx).rb + \n\
+				  texture2D(tex, left_idx).rb + \n\
+				  texture2D(tex, bottom_idx).rb + \n\
+				  texture2D(tex, top_idx).rb - \n\
+				  4. * txt_clr) + \n\
+			vec2(-d2 + currF * (1. - currU), \n\
+			      d2 - currK * currV), 0., 1.); \n\
 \n\
-	vec2 texColor = texture2D(texture, texCoord).rb; \n\
-	float srcTexColor = texture2D(srcTexture, texCoord).r; \n\
-\n\
-	vec2 sum = vec2(0.0, 0.0); \n\
-\n\
-	for (int i = 0; i < KERNEL_SIZE; i++) \n\
-	{ \n\
-		vec2 tmp = texture2D(texture, texCoord + offset[i]).rb; \n\
-		sum += tmp * kernel[i]; \n\
-	} \n\
-\n\
-	float F	= f + srcTexColor * 0.025 - 0.0005; \n\
-	float K	= k + srcTexColor * 0.025 - 0.0005; \n\
-\n\
-	float u	= texColor.r; \n\
-	float v	= texColor.g; \n\
-	float uvv = u * v * v; \n\
-//============================================================================ \n\
-	float du = ru * sum.r - uvv + F * (1.0 - u);	// Gray-Scott equation \n\
-	float dv = rv * sum.g + uvv - (F + K) * v;		// diffusion+-reaction \n\
-//============================================================================ \n\
-	u += du * 0.6; \n\
-	v += dv * 0.6; \n\
-	gl_FragColor = vec4(clamp(u, 0.0, 1.0), .0, clamp(v, 0.0, 1.0), 1.0); \n\
+	gl_FragColor = vec4(uv.x, 0.0, uv.y, 1.0);\n\
+} \n\
+";
+
+const char *GSRD::seed_fragment_shader = "\n\
+uniform sampler2D tex; \n\
+void main(void) \n\
+{ \n\
+	vec4 c = texture2D(tex, gl_TexCoord[0].st); \n\
+	float br = c.a * dot(vec3(.3, .59, .11), c.rgb); \n\
+	if (br > .5) \n\
+		gl_FragColor = vec4(vec3(.5, 0, .25) * br, 1.); \n\
+	else \n\
+		discard; \n\
 } \n\
 ";
 
 GLSLProg *GSRD::shader = NULL;
+GLSLProg *GSRD::seed_shader = NULL;
 
 GSRD::GSRD(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 {
 	/* this is called when the plugin is instantiated */
 	if (shader == NULL)
 		shader = new GLSLProg(vertex_shader, fragment_shader);
+	if (seed_shader == NULL)
+		seed_shader = new GLSLProg(vertex_shader, seed_fragment_shader);
 
 	FBO::Format format;
 	format.set_num_color_buffers(2);
+	format.set_color_internal_format(GL_RGBA32F_ARB);
 
 	fbo = new FBO(viewport.width, viewport.height, format);
 
-	// FIXME: do this in Surface.cpp
+	// FIXME: do this in FBO.cpp
 	for (int i = 0; i < 2; i++)
 	{
 		fbo->bind_texture(i);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -158,13 +140,12 @@ GSRD::GSRD()
 	set_minimum_input_frames(1);
 	set_maximum_input_frames(1);
 
-	add_parameter("ru", 0.28, 0.0, 1.0, FF_TYPE_STANDARD);
-	add_parameter("rv", 0.04, 0.0, 1.0, FF_TYPE_STANDARD);
-	add_parameter("k", 0.047, 0.0, 1.0, FF_TYPE_STANDARD);
-	add_parameter("f", 0.1, 0.0, 1.0, FF_TYPE_STANDARD);
+	add_parameter("dU", 0.16, 0.0, 1.0, FF_TYPE_STANDARD);
+	add_parameter("dV", 0.08, 0.0, 1.0, FF_TYPE_STANDARD);
+	add_parameter("k", 0.077, 0.0, 1.0, FF_TYPE_STANDARD);
+	add_parameter("f", 0.023, 0.0, 1.0, FF_TYPE_STANDARD);
 	add_parameter("iterations", 25., 1.0, 50.0, FF_TYPE_STANDARD);
 	add_parameter("reset", 0.0, FF_TYPE_EVENT);
-	add_parameter("scale", 1.0, 1.0, 4.0, FF_TYPE_STANDARD);
 
 	if (!glewIsSupported("GL_VERSION_2_0 ") || (glCreateProgram == NULL) ||
 			(glCreateShader == NULL) || (glAttachShader == NULL))
@@ -187,10 +168,12 @@ void GSRD::reset(unsigned handle)
 	for (int i = 0; i < 2; i++)
 	{
 		fbo->bind(i);
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		//glClearColor(1, 0, 0, 0);
+		//glClear(GL_COLOR_BUFFER_BIT);
 
-		glColor4f(1, 1, 1, 1);
+		seed_shader->bind();
+		seed_shader->uniform("tex", 0);
+		glColor4f(.5, 0, .25, 1);
 		glBegin(GL_QUADS);
 		glTexCoord2f(0, 0);
 		glVertex2f(-1, -1);
@@ -201,6 +184,8 @@ void GSRD::reset(unsigned handle)
 		glTexCoord2f(0, fbo->max_t);
 		glVertex2f(-1, 1);
 		glEnd();
+		glColor4f(1, 1, 1, 1);
+		seed_shader->unbind();
 
 		fbo->unbind();
 	}
@@ -224,17 +209,13 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 	}
 
 	shader->bind();
-	shader->uniform("texture", 0);
-	shader->uniform("srcTexture", 1);
-	shader->uniform("ru", parameters[PARAM_RU].fvalue);
-	shader->uniform("rv", parameters[PARAM_RV].fvalue);
+	shader->uniform("tex", 0);
+	shader->uniform("dU", parameters[PARAM_DU].fvalue);
+	shader->uniform("dV", parameters[PARAM_DV].fvalue);
 	shader->uniform("k", parameters[PARAM_K].fvalue);
 	shader->uniform("f", parameters[PARAM_F].fvalue);
-	shader->uniform("width", float(fbo->width) / parameters[PARAM_SCALE].fvalue);
+	shader->uniform("width", float(fbo->width));
 	shader->unbind();
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texture->Handle);
 
 	for (int i = 0; i < (int)parameters[PARAM_ITERATIONS].fvalue; i++)
 	{
