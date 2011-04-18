@@ -35,7 +35,8 @@ class GSRD : public FFGLPlugin
 		unsigned process_opengl(ProcessOpenGLStruct *pgl);
 
 	private:
-		void reset(unsigned handle);
+		void reset();
+		void seed(unsigned handle);
 
 		int current_fbo_txt;
 		FBO *fbo;
