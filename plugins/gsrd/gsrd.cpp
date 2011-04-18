@@ -27,8 +27,9 @@ using namespace std;
 const char *GSRD::vertex_shader ="\n\
 void main(void) \n\
 { \n\
-    gl_Position = ftransform(); \n\
-    gl_TexCoord[0] = gl_MultiTexCoord0; \n\
+	gl_Position = ftransform(); \n\
+	gl_TexCoord[0] = gl_MultiTexCoord0; \n\
+	gl_FrontColor = gl_Color; \n\
 } \n\
 ";
 
@@ -80,10 +81,7 @@ void main(void) \n\
 { \n\
 	vec4 c = texture2D(tex, gl_TexCoord[0].st); \n\
 	float br = c.a * dot(vec3(.3, .59, .11), c.rgb); \n\
-	if (br > .5) \n\
-		gl_FragColor = vec4(vec3(.5, 0, .25) * br, 1.); \n\
-	else \n\
-		discard; \n\
+	gl_FragColor = gl_Color * br; \n\
 } \n\
 ";
 
@@ -116,6 +114,7 @@ GSRD::GSRD(FFGLViewportStruct *vps) : FFGLPlugin(vps)
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+	reset();
 
 	current_fbo_txt = 0;
 }
@@ -161,16 +160,29 @@ GSRD::~GSRD()
 	delete fbo;
 }
 
-void GSRD::reset(unsigned handle)
+void GSRD::reset()
+{
+	glClearColor(1, 0, 0, 0);
+	for (int i = 0; i < 2; i++)
+	{
+		fbo->bind(i);
+		glClear(GL_COLOR_BUFFER_BIT);
+		fbo->unbind();
+	}
+	glClearColor(0, 0, 0, 0);
+}
+
+void GSRD::seed(unsigned handle)
 {
 	glBindTexture(GL_TEXTURE_2D, handle);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 	for (int i = 0; i < 2; i++)
 	{
 		fbo->bind(i);
-		//glClearColor(1, 0, 0, 0);
-		//glClear(GL_COLOR_BUFFER_BIT);
-
 		seed_shader->bind();
 		seed_shader->uniform("tex", 0);
 		glColor4f(.5, 0, .25, 1);
@@ -189,12 +201,13 @@ void GSRD::reset(unsigned handle)
 
 		fbo->unbind();
 	}
+
+	glBlendFunc(GL_ONE, GL_ZERO); // default blend func
+	glDisable(GL_BLEND);
 }
 
 unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 {
-	static bool inited = false;
-
 	if ((pgl->numInputTextures < 1) || (pgl->inputTextures[0] == NULL))
 		return FF_FAIL;
 
@@ -202,11 +215,12 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 
 	glEnable(GL_TEXTURE_2D);
 
-	if ((parameters[PARAM_RESET].fvalue > 0) || !inited)
+	if (parameters[PARAM_RESET].fvalue > 0)
 	{
-		reset(texture->Handle);
-		inited = true;
+		reset();
 	}
+
+	seed(texture->Handle);
 
 	shader->bind();
 	shader->uniform("tex", 0);
@@ -280,6 +294,8 @@ unsigned GSRD::process_opengl(ProcessOpenGLStruct *pgl)
 
 	glDisable(GL_TEXTURE_2D);
 
+	// restore default texcoord
+	glTexCoord2f(0, 0);
 	return FF_SUCCESS;
 }
 
