@@ -82,7 +82,7 @@ if env['PLATFORM'] == 'darwin':
 # configure environment
 CFLAGS = '-std=gnu99 -Wno-import'
 CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
-		'-pedantic -ggdb2 -O3 -Wno-variadic-macros'
+		'-ggdb2 -O3 -Wno-variadic-macros'
 
 env.Append(CFLAGS = CFLAGS)
 env.MergeFlags(CCFLAGS)
