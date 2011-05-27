@@ -250,7 +250,7 @@ void Freenect::depth_cb(freenect_device *dev, void *vdepth, uint32_t timestamp)
 		{
 			for (int i = 0; i < 2048; i++)
 			{
-				depth_hist[i] = static_cast<unsigned>(65535 *
+				depth_hist[i] = static_cast<uint16_t>(65535 *
 						(1.f - static_cast<float>(depth_hist[i]) / static_cast<float>(n)));
 			}
 			depth_hist[0] = 0;
