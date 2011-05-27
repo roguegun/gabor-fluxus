@@ -1,6 +1,6 @@
 (clear)
 
-(require fluxus-017/freenect)
+(require fluxus-018/freenect)
 
 (define kinect (freenect-open 0))
 

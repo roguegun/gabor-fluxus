@@ -44,7 +44,7 @@ class VideoTexture
 				return height;
 			}
 
-			void upload(void *pixels);
+			void upload(void *pixels, int type = -1);
 
 	protected:
 			void gen_texture();

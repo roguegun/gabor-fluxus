@@ -6,7 +6,7 @@ TargetSS = 'freenect.ss'
 
 # fluxus version
 MajorVersion = "0"
-MinorVersion = "17"
+MinorVersion = "18"
 FluxusVersion = MajorVersion + MinorVersion
 
 STATIC = int(ARGUMENTS.get("STATIC", 0))

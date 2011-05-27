@@ -420,6 +420,33 @@ Scheme_Object *freenect_get_depth_imgptr(int argc, Scheme_Object **argv)
     return ret;
 }
 
+// StartFunctionDoc-en
+// freenect-infrared infra-boolean
+// Returns: void
+// Description:
+// Example:
+// (freenect-infrared #t) ; TODO
+// EndFunctionDoc
+
+Scheme_Object *freenect_infrared(int argc, Scheme_Object **argv)
+{
+	MZ_GC_DECL_REG(1);
+	MZ_GC_VAR_IN_REG(0, argv);
+	MZ_GC_REG();
+
+	ArgCheck("freenect-infrared", "b", argc, argv);
+
+	if (grabbed_device == NULL)
+	{
+		cerr << "freenect: freenect-infrared can only be used while a freenect device is grabbed." << endl;
+	}
+	else
+	{
+		grabbed_device->set_video_infrared(BoolFromScheme(argv[0]));
+	}
+	MZ_GC_UNREG();
+	return scheme_void;
+}
 
 Scheme_Object *scheme_reload(Scheme_Env *env)
 {
@@ -446,6 +473,7 @@ Scheme_Object *scheme_reload(Scheme_Env *env)
 	scheme_add_global("freenect-depth-at", scheme_make_prim_w_arity(freenect_depth_at, "freenect-depth-at", 2, 2), menv);
 	scheme_add_global("freenect-worldcoord-at", scheme_make_prim_w_arity(freenect_worldcoord_at, "freenect-worldcoord-at", 2, 2), menv);
 	scheme_add_global("freenect-get-depth-imgptr", scheme_make_prim_w_arity(freenect_get_depth_imgptr, "freenect-get-depth-imgptr", 0, 0), menv);
+	scheme_add_global("freenect-infrared", scheme_make_prim_w_arity(freenect_infrared, "freenect-infrared", 1, 1), menv);
 
 	scheme_finish_primitive_module(menv);
 	MZ_GC_UNREG();

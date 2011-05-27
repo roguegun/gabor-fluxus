@@ -1,6 +1,6 @@
 (clear)
 
-(require fluxus-017/freenect)
+(require fluxus-018/freenect)
 
 (printf "There are ~a Kinects connected~n" (freenect-get-num-devices))
 

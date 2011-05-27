@@ -14,11 +14,14 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+#include <iostream>
 #include <math.h>
 #include <string.h>
 
 #include "OpenGL.h"
 #include "Freenect.h"
+
+using namespace std;
 
 freenect_context *Freenect::ctx = NULL;
 
@@ -122,7 +125,8 @@ int Freenect::get_num_devices()
 
 Freenect::Device::Device(int id) :
 	thread_die(false),
-	new_rgb_frame(false)
+	new_rgb_frame(false),
+	infrared(false)
 {
 	if (freenect_open_device(get_context(), &handle, id) < 0)
 		throw ExcFreenectOpenDevice();
@@ -140,9 +144,12 @@ Freenect::Device::Device(int id) :
 
 	freenect_set_user(handle, this);
 	tilt = freenect_get_tilt_degs(freenect_get_tilt_state(handle));
-	freenect_set_video_format(handle, FREENECT_VIDEO_RGB);
+	freenect_set_video_mode(handle, freenect_find_video_mode(FREENECT_RESOLUTION_MEDIUM, FREENECT_VIDEO_RGB));
+	freenect_set_depth_mode(handle, freenect_find_depth_mode(FREENECT_RESOLUTION_MEDIUM, FREENECT_DEPTH_11BIT));
+	//freenect_set_video_format(handle, FREENECT_VIDEO_RGB);
 	freenect_set_video_callback(handle, video_cb);
-	freenect_set_depth_format(handle, FREENECT_DEPTH_11BIT);
+	freenect_set_video_buffer(handle, rgb_pixels);
+	//freenect_set_depth_format(handle, FREENECT_DEPTH_11BIT);
 	freenect_set_depth_callback(handle, depth_cb);
 
 	pthread_create(&thread, NULL, &thread_func, this);
@@ -182,7 +189,20 @@ void Freenect::video_cb(freenect_device *dev, void *rgb, uint32_t timestamp)
 	Freenect::Device *device = reinterpret_cast<Freenect::Device *>(freenect_get_user(dev));
 	pthread_mutex_lock(&(device->mutex));
 
-	memcpy(device->rgb_pixels, rgb, FREENECT_FRAME_W * FREENECT_FRAME_H * 3 * sizeof(uint8_t));
+	if (device->infrared)
+	{
+		uint8_t *rgb8 = reinterpret_cast<uint8_t *>(rgb);
+		int j = 0;
+		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+		{
+			device->rgb_pixels[j] = device->rgb_pixels[j + 1] =
+				device->rgb_pixels[j + 2] = rgb8[i];
+			j += 3;
+		}
+	}
+	else
+		memcpy(device->rgb_pixels, rgb, FREENECT_FRAME_W * FREENECT_FRAME_H * 3 * sizeof(uint8_t));
+
 	device->new_rgb_frame = true;
 
 	pthread_mutex_unlock(&(device->mutex));
@@ -267,7 +287,7 @@ void Freenect::Device::update()
 
 void Freenect::Device::update_rgb_calibrated()
 {
-	for (unsigned i = 0, j = 0; i < FREENECT_FRAME_PIX; i++, j += 3)
+	for (int i = 0, j = 0; i < FREENECT_FRAME_PIX; i++, j += 3)
 	{
 		unsigned off = rgb2depth_lut[i];
 		rgb_calibrated_pixels[j] = rgb_pixels[off];
@@ -334,5 +354,28 @@ Vector Freenect::worldcoord_at(int x, int y)
 void *Freenect::get_depth_pixels()
 {
 	return static_cast<void *>(device->depth_pixels);
+}
+
+void Freenect::set_video_infrared(bool infra /* = true */)
+{
+	if (device->infrared != infra)
+	{
+		cout << "stop video" << endl;
+        freenect_stop_video(device->handle);
+		cout << "lock mutex" << endl;
+		pthread_mutex_lock(&(device->mutex));
+		device->infrared = infra;
+		cout << "set format" << endl;
+		/*
+		if (device->infrared)
+			freenect_set_video_format(device->handle, FREENECT_VIDEO_IR_8BIT);
+		else
+			freenect_set_video_format(device->handle, FREENECT_VIDEO_RGB);
+		*/
+		cout << "unlock mutex" << endl;
+		pthread_mutex_unlock(&(device->mutex));
+		cout << "start video" << endl;
+        freenect_start_video(device->handle);
+    }
 }
 

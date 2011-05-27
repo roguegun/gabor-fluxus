@@ -1,8 +1,8 @@
 #lang racket/base
 
-(require fluxus-017/fluxus-freenect)
+(require fluxus-018/fluxus-freenect)
 (provide
-  (except-out (all-from-out fluxus-017/fluxus-freenect)
+  (except-out (all-from-out fluxus-018/fluxus-freenect)
 			  freenect-grab-device
 			  freenect-ungrab-device)
   with-freenect-device)

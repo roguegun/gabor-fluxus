@@ -113,8 +113,12 @@ void VideoTexture::gen_texture()
 	glDisable(GL_TEXTURE_2D);
 }
 
-void VideoTexture::upload(void *pixels)
+void VideoTexture::upload(void *pixels, int type /* = -1 */)
 {
+	if (type == -1)
+	{
+		type = this->type;
+	}
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 
