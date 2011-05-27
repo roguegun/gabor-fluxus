@@ -26,6 +26,18 @@
 
 class Exc : public std::exception {};
 
+#ifdef FREENECT_FRAME_W
+#undef FREENECT_FRAME_W
+#endif
+
+#ifdef FREENECT_FRAME_H
+#undef FREENECT_FRAME_H
+#endif
+
+#ifdef FREENECT_FRAME_PIX
+#undef FREENECT_FRAME_PIX
+#endif
+
 class Vector
 {
 	public:
@@ -68,6 +80,7 @@ class Freenect
 		Vector worldcoord_at(int x, int y);
 
 		void *get_depth_pixels();
+		void set_video_infrared(bool infra = true);
 
 		enum {
 			DEPTH_RAW = 0,
@@ -110,9 +123,15 @@ class Freenect
 
 				void update();
 
+				bool infrared;
+
 			private:
 				void update_rgb_calibrated();
 		};
+
+		static const int FREENECT_FRAME_W = 640;
+		static const int FREENECT_FRAME_H = 480;
+		static const int FREENECT_FRAME_PIX = 640 * 480;
 
 		static void *thread_func(void *vdev);
 		static bool luts;
