@@ -7,6 +7,8 @@
 (define pw 640)
 (define ph 480)
 
+(texture-params 0 '(min nearest mag nearest))
+
 (define p (build-particles (* pw ph)))
 
 (freenect-set-depth-mode 'hist)

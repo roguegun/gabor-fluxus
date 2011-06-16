@@ -1,24 +1,23 @@
+(require racket/vector)
+
 (clear)
 
-(require fluxus-017/freenect)
+(require fluxus-018/freenect)
 
 (define kinect (freenect-open 0))
 
-(freenect-set-depth-mode 'scaled)
-
-(define thr .56)
+(freenect-set-depth-mode 'raw)
 
 (define (render)
-    (translate #(0 0 -40))
     (with-freenect-device kinect
         (for* ([x (in-range 0 640 10)]
                [y (in-range 0 480 10)])
-            (let ([z (freenect-depth-at x y)])
-                (when (> z .56)
+            (let ([pos (freenect-worldcoord-at x y)])
+                (when (> (vz pos) 0)
                     (with-state
-                        (translate (vector (* (- x 320) .1) (* (- 240 y) .1) (* 100.0 (- z thr))))
-                        (scale .4)
-                        (colour (hsv->rgb (vector z .9 .6)))
+                        (translate (vector-map * pos #(1 1 -4)))
+                        (scale .1)
+                        (colour (hsv->rgb (vector (* (vz pos) .1) .9 .6)))
                         (draw-cube)))))
         (freenect-update)))
 

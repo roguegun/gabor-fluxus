@@ -51,6 +51,8 @@ class Vector
 		}
 
 		float x, y, z, w;
+
+		float *arr() { return &x; };
 };
 
 class Freenect
@@ -136,7 +138,7 @@ class Freenect
 		static void *thread_func(void *vdev);
 		static bool luts;
 		static unsigned *rgb2depth_lut; // lookup table for rgb transform
-		static float *distance_lut; // lookup table for distance from depth
+		static float distance_lut[2048]; // lookup table for distance from depth
 
 		Device *device;
 };

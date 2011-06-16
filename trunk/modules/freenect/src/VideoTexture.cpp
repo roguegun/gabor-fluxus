@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <sstream>
 
 #include <iostream>
 
@@ -51,7 +52,7 @@ static int check_gl_errors(const char *call)
 
 #endif
 
-VideoTexture::VideoTexture(int w, int h, int f, int t /* = GL_UNSIGNED_BYTE */) :
+VideoTexture::VideoTexture(int w, int h, Format format) :
 	texture_id(0)
 {
 	if (glewInit() != GLEW_OK)
@@ -64,9 +65,7 @@ VideoTexture::VideoTexture(int w, int h, int f, int t /* = GL_UNSIGNED_BYTE */) 
 
 	width = w;
 	height = h;
-	format = f;
-	type = t;
-	gen_texture();
+	gen_texture(format);
 }
 
 VideoTexture::~VideoTexture()
@@ -77,7 +76,7 @@ VideoTexture::~VideoTexture()
 	}
 }
 
-void VideoTexture::gen_texture()
+void VideoTexture::gen_texture(Format format)
 {
 	if (npot_enabled)
 	{
@@ -90,50 +89,56 @@ void VideoTexture::gen_texture()
 		tex_height = 1 << (unsigned)ceil(log2(height));
 	}
 
-	glEnable(GL_TEXTURE_2D);
+	target = format.target;
+	dataformat = format.dataformat;
+	datatype = format.datatype;
+
+	glEnable(format.target);
 	glGenTextures(1, &texture_id);
 
-	glBindTexture(GL_TEXTURE_2D, texture_id);
+	glBindTexture(format.target, texture_id);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, 4, tex_width, tex_height, 0,
-			format, type, NULL);
+	glTexImage2D(format.target, 0, format.internal_format, tex_width, tex_height, 0,
+			format.dataformat, format.datatype, NULL);
 	CHECK_GL_ERRORS("glTexImage2d");
 
-	if (mipmapping_enabled)
+	if (format.mipmapping && mipmapping_enabled)
 	{
 		glGenerateMipmapEXT(GL_TEXTURE_2D);
 		CHECK_GL_ERRORS("glGenerateMipmapEXT");
 	}
 	else
 	{
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		mipmapping_enabled = false;
 	}
 
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+	glTexParameteri(format.target, GL_TEXTURE_WRAP_S, format.wrap_s);
+	glTexParameteri(format.target, GL_TEXTURE_WRAP_T, format.wrap_t);
+	glTexParameteri(format.target, GL_TEXTURE_MIN_FILTER, format.min_filter);
+	glTexParameteri(format.target, GL_TEXTURE_MAG_FILTER, format.mag_filter);
+	CHECK_GL_ERRORS("glTexParameteri");
+
+	glBindTexture(format.target, 0);
+	glDisable(format.target);
 }
 
-void VideoTexture::upload(void *pixels, int type /* = -1 */)
+void VideoTexture::upload(void *pixels)
 {
-	if (type == -1)
-	{
-		type = this->type;
-	}
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texture_id);
+	glEnable(target);
+	glBindTexture(target, texture_id);
 
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-			format, type, pixels);
-	CHECK_GL_ERRORS("update: glTexSubImage2d");
+	glTexSubImage2D(target, 0, 0, 0, width, height,
+			dataformat, datatype, pixels);
+	CHECK_GL_ERRORS("upload: glTexSubImage2d");
 
 	if (mipmapping_enabled)
 	{
-		glGenerateMipmapEXT(GL_TEXTURE_2D);
-		CHECK_GL_ERRORS("update: glGenerateMipmapEXT");
+		glGenerateMipmapEXT(target);
+		CHECK_GL_ERRORS("upload: glGenerateMipmapEXT");
 	}
 
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+	glBindTexture(target, 0);
+	glDisable(target);
 }
 
 /**
@@ -152,5 +157,18 @@ float *VideoTexture::get_tcoords()
 	t[5] = 0.0;
 
 	return t;
+}
+
+VideoTexture::Format::Format()
+{
+	target = GL_TEXTURE_2D;
+	wrap_s = GL_CLAMP_TO_EDGE;
+	wrap_t = GL_CLAMP_TO_EDGE;
+	min_filter = GL_NEAREST;
+	mag_filter = GL_NEAREST;
+	mipmapping = true;
+	internal_format = GL_RGBA;
+	dataformat = GL_RGB;
+	datatype = GL_UNSIGNED_BYTE;
 }
 

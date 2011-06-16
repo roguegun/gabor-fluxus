@@ -280,7 +280,6 @@ Scheme_Object *freenect_update(int argc, Scheme_Object **argv)
 	return scheme_void;
 }
 
-
 static Scheme_Object *scheme_vector(float v0, float v1, float v2)
 {
 	Scheme_Object *ret = NULL;
@@ -290,13 +289,18 @@ static Scheme_Object *scheme_vector(float v0, float v1, float v2)
 	MZ_GC_VAR_IN_REG(1, tmp);
 	MZ_GC_REG();
 	ret = scheme_make_vector(3, scheme_void);
-	SCHEME_VEC_ELS(ret)[0] = scheme_make_double(v0);
-	SCHEME_VEC_ELS(ret)[1] = scheme_make_double(v1);
-	SCHEME_VEC_ELS(ret)[2] = scheme_make_double(v2);
+
+	tmp = scheme_make_double(v0);
+	SCHEME_VEC_ELS(ret)[0] = tmp;
+	tmp = scheme_make_double(v1);
+	SCHEME_VEC_ELS(ret)[1] = tmp;
+	tmp = scheme_make_double(v2);
+	SCHEME_VEC_ELS(ret)[2] = tmp;
 
 	MZ_GC_UNREG();
 	return ret;
 }
+
 
 // StartFunctionDoc-en
 // freenect-tcoords

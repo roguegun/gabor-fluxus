@@ -27,7 +27,7 @@ freenect_context *Freenect::ctx = NULL;
 
 bool Freenect::luts = false;
 unsigned *Freenect::rgb2depth_lut = NULL;
-float *Freenect::distance_lut = NULL;
+float Freenect::distance_lut[2048];
 
 int Freenect::depth_mode = Freenect::DEPTH_HIST;
 unsigned Freenect::depth_hist[2048];
@@ -53,7 +53,6 @@ Freenect::Freenect(int id) :
 			for (int x = 0; x < FREENECT_FRAME_W; x++)
 			{
 				uv = Vector(x, y);
-				//uv.x = x; uv.y = y; uv.z = 0; uv.w = 1;
 
 				t.x = uv.x * m[0][0] + uv.y * m[1][0] + uv.z * m[2][0] + uv.w * m[3][0];
 				t.y = uv.x * m[0][1] + uv.y * m[1][1] + uv.z * m[2][1] + uv.w * m[3][1];
@@ -77,15 +76,14 @@ Freenect::Freenect(int id) :
 		}
 
 		// depth to distance
-		distance_lut = new float [2048];
 		// equation from http://openkinect.org/wiki/Imaging_Information
 		const float k1 = 0.1236;
 		const float k2 = 2842.5;
 		const float k3 = 1.1863;
-		const float k4 = 0.0370;
+		//const float k4 = 0.0370;
 		for (unsigned i = 0; i < 2048; i++)
 		{
-			distance_lut[i] = k1 * tanf(i / k2 + k3) - k4;
+			distance_lut[i] = k1 * tanf((i / k2) + k3); // - k4;
 		}
 
 		luts = true;
@@ -132,13 +130,18 @@ Freenect::Device::Device(int id) :
 		throw ExcFreenectOpenDevice();
 
 	rgb_pixels = new uint8_t[FREENECT_FRAME_W * FREENECT_FRAME_H * 3];
-	rgb_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_RGB);
+	VideoTexture::Format rgb_format;
+	rgb_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, rgb_format);
 
 	depth_pixels = new uint16_t[FREENECT_FRAME_W * FREENECT_FRAME_H];
-	depth_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_LUMINANCE, GL_UNSIGNED_SHORT);
+	VideoTexture::Format depth_format;
+	depth_format.set_dataformat(GL_LUMINANCE);
+	depth_format.set_datatype(GL_UNSIGNED_SHORT);
+	depth_format.set_internal_format(GL_LUMINANCE16);
+	depth_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, depth_format);
 
 	rgb_calibrated_pixels = new uint8_t[FREENECT_FRAME_W * FREENECT_FRAME_H * 3];
-	rgb_calibrated_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, GL_RGB);
+	rgb_calibrated_txt = new VideoTexture(FREENECT_FRAME_W, FREENECT_FRAME_H, rgb_format);
 
 	pthread_mutex_init(&mutex, NULL);
 
@@ -146,10 +149,8 @@ Freenect::Device::Device(int id) :
 	tilt = freenect_get_tilt_degs(freenect_get_tilt_state(handle));
 	freenect_set_video_mode(handle, freenect_find_video_mode(FREENECT_RESOLUTION_MEDIUM, FREENECT_VIDEO_RGB));
 	freenect_set_depth_mode(handle, freenect_find_depth_mode(FREENECT_RESOLUTION_MEDIUM, FREENECT_DEPTH_11BIT));
-	//freenect_set_video_format(handle, FREENECT_VIDEO_RGB);
 	freenect_set_video_callback(handle, video_cb);
 	freenect_set_video_buffer(handle, rgb_pixels);
-	//freenect_set_depth_format(handle, FREENECT_DEPTH_11BIT);
 	freenect_set_depth_callback(handle, depth_cb);
 
 	pthread_create(&thread, NULL, &thread_func, this);
@@ -253,7 +254,7 @@ void Freenect::depth_cb(freenect_device *dev, void *vdepth, uint32_t timestamp)
 				depth_hist[i] = static_cast<uint16_t>(65535 *
 						(1.f - static_cast<float>(depth_hist[i]) / static_cast<float>(n)));
 			}
-			depth_hist[0] = 0;
+			depth_hist[2047] = 0;
 		}
 
 		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
@@ -282,7 +283,6 @@ void Freenect::Device::update()
 		new_depth_frame = false;
 	}
 	pthread_mutex_unlock(&mutex);
-
 }
 
 void Freenect::Device::update_rgb_calibrated()
@@ -329,7 +329,6 @@ float Freenect::depth_at(int x, int y)
 
 Vector Freenect::worldcoord_at(int x, int y)
 {
-	// http://graphics.stanford.edu/~mdfisher/Kinect.html
 	float depth = 0;
 
 	if ((x >= 0) && (x < FREENECT_FRAME_W) &&
@@ -338,15 +337,14 @@ Vector Freenect::worldcoord_at(int x, int y)
 		depth = distance_lut[device->depth_pixels[y * FREENECT_FRAME_W + x]];
 	}
 
-	static const double fx_d = 1.0 / 5.9421434211923247e+02;
-	static const double fy_d = 1.0 / 5.9104053696870778e+02;
-	static const double cx_d = 3.3930780975300314e+02;
-	static const double cy_d = 2.4273913761751615e+02;
-
 	Vector result;
-	result.x = float((x - cx_d) * depth * fx_d);
-	result.y = float((y - cy_d) * depth * fy_d);
-	result.z = float(depth);
+	float min_distance = -10.;
+	float scale_factor = .0021;
+	result.x = (x - FREENECT_FRAME_W / 2) * (depth + min_distance) *
+			scale_factor * FREENECT_FRAME_W / float(FREENECT_FRAME_H);
+	result.y = (y - FREENECT_FRAME_H / 2) * (depth + min_distance) *
+			scale_factor;
+	result.z = depth;
 
 	return result;
 }

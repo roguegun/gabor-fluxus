@@ -24,7 +24,9 @@
 class VideoTexture
 {
 	public:
-			VideoTexture(int w, int h, int f, int t = GL_UNSIGNED_BYTE);
+			class Format;
+
+			VideoTexture(int w, int h, Format format);
 			virtual ~VideoTexture();
 
 			float* get_tcoords();
@@ -44,17 +46,41 @@ class VideoTexture
 				return height;
 			}
 
-			void upload(void *pixels, int type = -1);
+			void upload(void *pixels);
+
+			class Format
+			{
+				public:
+					Format();
+
+					void set_target(GLenum t) { target = t; }
+					void set_internal_format(GLint intf) { internal_format = intf; }
+					void set_datatype(GLenum t) { datatype = t; }
+					void set_dataformat(GLenum format) { dataformat = format; }
+
+				protected:
+					GLenum target;
+					GLenum datatype;
+					GLenum wrap_s, wrap_t;
+					GLenum min_filter, mag_filter;
+					bool mipmapping;
+					GLint internal_format;
+					GLenum dataformat;
+
+					friend class VideoTexture;
+			};
 
 	protected:
-			void gen_texture();
+			void gen_texture(Format format);
 
 			bool mipmapping_enabled;
 			bool npot_enabled; // support for non power of two textures
 			int width, height; // pixel buffer resolution of image
 			int tex_width, tex_height; // texture resolution (power of 2)
-			int format; // texture format, GL_RGB or GL_LUMINANCE
-			int type; // data type of the pixel data
+
+			GLenum target;
+			GLenum dataformat; // format of the pixel data, usually GL_RGB or GL_LUMINANCE
+			GLenum datatype; // data type of the pixel data
 
 			unsigned texture_id;
 };
