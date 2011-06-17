@@ -87,7 +87,8 @@ class Freenect
 		enum {
 			DEPTH_RAW = 0,
 			DEPTH_SCALED,
-			DEPTH_HIST
+			DEPTH_HIST,
+			DEPTH_WORLD
 		};
 	private:
 		static freenect_context *ctx;

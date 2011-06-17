@@ -77,14 +77,24 @@ Freenect::Freenect(int id) :
 
 		// depth to distance
 		// equation from http://openkinect.org/wiki/Imaging_Information
+
+		/*
 		const float k1 = 0.1236;
 		const float k2 = 2842.5;
 		const float k3 = 1.1863;
-		//const float k4 = 0.0370;
-		for (unsigned i = 0; i < 2048; i++)
+		for (unsigned i = 0; i < 1024; i++)
 		{
-			distance_lut[i] = k1 * tanf((i / k2) + k3); // - k4;
+			distance_lut[i] = k1 * tanf((i / k2) + k3);
 		}
+		*/
+
+		for (unsigned i = 0; i < 1024; i++)
+		{
+			distance_lut[i] = 1.0 / (i * -0.0030711016 + 3.3309495161);
+		}
+
+		memset(&distance_lut[1024], 0, 1024);
+		distance_lut[0] = distance_lut[2047] = 0; // invalid values
 
 		luts = true;
 	}
@@ -262,6 +272,14 @@ void Freenect::depth_cb(freenect_device *dev, void *vdepth, uint32_t timestamp)
 			device->depth_pixels[i] = depth_hist[depth[i]];
 		}
 	}
+	else if (depth_mode == DEPTH_WORLD)
+	{
+		float scale = 65535. / (distance_lut[1023] - distance_lut[1]);
+		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
+		{
+			device->depth_pixels[i] = static_cast<uint16_t>(distance_lut[1] + scale * distance_lut[depth[i]]);
+		}
+	}
 
 	device->new_depth_frame = true;
 
@@ -337,6 +355,7 @@ Vector Freenect::worldcoord_at(int x, int y)
 		depth = distance_lut[device->depth_pixels[y * FREENECT_FRAME_W + x]];
 	}
 
+	/*
 	Vector result;
 	float min_distance = -10.;
 	float scale_factor = .0021;
@@ -344,6 +363,17 @@ Vector Freenect::worldcoord_at(int x, int y)
 			scale_factor * FREENECT_FRAME_W / float(FREENECT_FRAME_H);
 	result.y = (y - FREENECT_FRAME_H / 2) * (depth + min_distance) *
 			scale_factor;
+	result.z = depth;
+	*/
+
+	static const double fx_d = 1.0 / 5.9421434211923247e+02;
+	static const double fy_d = 1.0 / 5.9104053696870778e+02;
+	static const double cx_d = 3.3930780975300314e+02;
+	static const double cy_d = 2.4273913761751615e+02;
+
+	Vector result;
+	result.x = float((x - cx_d) * depth * fx_d);
+	result.y = float((y - cy_d) * depth * -fy_d);
 	result.z = depth;
 
 	return result;

@@ -206,7 +206,8 @@ Scheme_Object *freenect_get_depth_texture(int argc, Scheme_Object **argv)
 // Description:
 // Sets how the depth values are converted. Mode is one of 'raw, 'scaled, 'hist.
 // 'raw returns the original 11-bit values, 'scaled scales them up to the visible range,
-// 'hist moves the values into the visually sensible space using a histogram. The default
+// 'hist moves the values into the visually sensible space using a histogram, 'world'
+// transforms the non-linear depth values to world coordinates. The default
 // mode is 'hist.
 // Example:
 // (freenect-set-depth-mode 'hist)
@@ -220,7 +221,7 @@ Scheme_Object *freenect_set_depth_mode(int argc, Scheme_Object **argv)
 	string m = SymbolName(argv[0]);
 	int mode = -1;
 
-	string modes[] = {"raw", "scaled", "hist"};
+	string modes[] = {"raw", "scaled", "hist", "world"};
 	for (unsigned i = 0; i < sizeof(modes) / sizeof(modes[0]); i++)
 	{
 		if (m == modes[i])
