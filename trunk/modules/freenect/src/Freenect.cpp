@@ -272,12 +272,12 @@ void Freenect::depth_cb(freenect_device *dev, void *vdepth, uint32_t timestamp)
 			device->depth_pixels[i] = depth_hist[depth[i]];
 		}
 	}
-	else if (depth_mode == DEPTH_WORLD)
+	else if (depth_mode == DEPTH_WORLD) // world coordinates
 	{
-		float scale = 65535. / (distance_lut[1023] - distance_lut[1]);
+		float scale = 65535. / distance_lut[1023];
 		for (int i = 0; i < FREENECT_FRAME_PIX; i++)
 		{
-			device->depth_pixels[i] = static_cast<uint16_t>(distance_lut[1] + scale * distance_lut[depth[i]]);
+			device->depth_pixels[i] = static_cast<uint16_t>(scale * distance_lut[depth[i]]);
 		}
 	}
 
