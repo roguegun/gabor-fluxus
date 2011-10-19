@@ -1,0 +1,18 @@
+Build instructions
+
+Install libfreenect.
+
+Then type:
+	scons
+	sudo scons install
+
+OS X build instructions
+
+libfreenect required to be an universal build.
+	Make a directory 'build' in the repo directory
+	Go into that directory
+	Type ccmake ..
+	press 'c' for configure, then change CMAKE_OSX_ARCHITECTURES to "i386 -arch x86_64"
+	configure and generate, then type make
+	sudo make install
+
