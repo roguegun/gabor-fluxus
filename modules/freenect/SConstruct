@@ -83,6 +83,8 @@ if env['PLATFORM'] == 'darwin':
 CFLAGS = '-std=gnu99 -Wno-import'
 CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' \
 		'-ggdb2 -O3 '
+if env['PLATFORM'] == 'darwin':
+	CCFLAGS += ' -arch i386'
 
 env.Append(CFLAGS = CFLAGS)
 env.MergeFlags(CCFLAGS)
