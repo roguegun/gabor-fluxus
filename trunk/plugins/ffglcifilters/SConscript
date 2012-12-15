@@ -27,7 +27,7 @@ CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' + \
 		'-pedantic -arch i386 '
 CFLAGS = '-std=gnu99 -Wno-import '
 
-LINKFLAGS = ''
+LINKFLAGS = '-arch i386'
 
 if GetOption('bundle'):
 	STATIC = 1
