@@ -24,7 +24,7 @@ FFGLCIFilters were developed for Fluxus (http://www.pawfal.org/fluxus), although
 they can be used in any FFGL capable applications.
 
 To install the filters in the Fluxus default plugin folder
-(/opt/local/share/fluxus-016/plugins/) type:
+(/opt/local/share/fluxus-018/plugins/) type:
 sudo scons install
 
 To install to a specific folder type:

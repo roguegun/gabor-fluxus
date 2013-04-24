@@ -4,7 +4,7 @@
 env = Environment()
 env.Import(['TARGET', 'DEBUG', 'ECCFLAGS', 'LIBS', 'LIBPATH'])
 
-INSTALLPATH = ARGUMENTS.get('InstallDir', '/opt/local/share/fluxus-017/plugins')
+INSTALLPATH = ARGUMENTS.get('InstallDir', '/opt/local/share/fluxus-018/plugins')
 PROFILE = int(ARGUMENTS.get('profile', 0))
 
 SOURCES = ['CITemplate.cpp', 'CIObjC.m', 'Surface.cpp']
@@ -27,7 +27,7 @@ CCFLAGS = '-Wall -Wno-unknown-pragmas -Wno-long-long ' + \
 		'-pedantic -arch i386 '
 CFLAGS = '-std=gnu99 -Wno-import '
 
-LINKFLAGS = '-arch i386'
+LINKFLAGS = '-arch i386 '
 
 if GetOption('bundle'):
 	STATIC = 1
